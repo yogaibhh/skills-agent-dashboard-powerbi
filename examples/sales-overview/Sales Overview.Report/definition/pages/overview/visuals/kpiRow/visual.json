@@ -1,0 +1,13 @@
+﻿{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.1.0/schema.json",
+  "name": "bbbb111122223333cccc",
+  "position": { "x": 24, "y": 88, "z": 5000, "width": 1232, "height": 112, "tabOrder": 5000 },
+  "visual": {
+    "visualType": "cardVisual",
+    "query": { "queryState": { "Data": { "projections": [
+      { "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "Sales" } }, "Property": "Total Sales" } }, "queryRef": "Sales.Total Sales", "nativeQueryRef": "Total Sales" },
+      { "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "Sales" } }, "Property": "Total Orders" } }, "queryRef": "Sales.Total Orders", "nativeQueryRef": "Total Orders" }
+    ] } } },
+    "drillFilterOtherVisuals": true
+  }
+}

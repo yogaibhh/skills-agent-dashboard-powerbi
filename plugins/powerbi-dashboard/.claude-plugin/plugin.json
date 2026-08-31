@@ -1,0 +1,6 @@
+{
+  "name": "powerbi-dashboard",
+  "version": "0.1.0",
+  "description": "Generate a full Power BI dashboard from a semantic model: discover fields, pick a layout blueprint, emit bound PBIR visuals, validate, and deploy.",
+  "keywords": ["power-bi", "pbir", "pbip", "dashboard", "fabric"]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "powerbi-dashboard-skill",
+  "owner": {
+    "name": "yogaibhh"
+  },
+  "metadata": {
+    "description": "Agentic skill that generates complete, ready-to-open Power BI dashboards (PBIR reports) from a semantic model.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "powerbi-dashboard",
+      "description": "Generate a full Power BI dashboard from a semantic model: discover fields, pick a layout blueprint, emit bound PBIR visuals, validate, and deploy.",
+      "source": "./plugins/powerbi-dashboard",
+      "version": "0.1.0",
+      "keywords": [
+        "power-bi",
+        "powerbi",
+        "pbir",
+        "pbip",
+        "dashboard",
+        "report-authoring",
+        "fabric"
+      ]
+    }
+  ]
+}

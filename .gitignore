@@ -1,0 +1,14 @@
+# Power BI / PBIP local artifacts
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+**/*.pbix
+**/*.abf
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
+
+# Node (if you add tooling later)
+node_modules/

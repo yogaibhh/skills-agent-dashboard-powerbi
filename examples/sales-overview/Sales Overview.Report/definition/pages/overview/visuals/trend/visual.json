@@ -1,0 +1,14 @@
+﻿{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.1.0/schema.json",
+  "name": "cccc111122223333dddd",
+  "position": { "x": 24, "y": 216, "z": 4000, "width": 816, "height": 232, "tabOrder": 2000 },
+  "visual": {
+    "visualType": "lineChart",
+    "query": { "queryState": {
+      "Category": { "projections": [ { "field": { "Column": { "Expression": { "SourceRef": { "Entity": "Date" } }, "Property": "Date" } }, "queryRef": "Date.Date", "nativeQueryRef": "Date", "active": true } ] },
+      "Y": { "projections": [ { "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "Sales" } }, "Property": "Total Sales" } }, "queryRef": "Sales.Total Sales", "nativeQueryRef": "Total Sales" } ] }
+    } },
+    "drillFilterOtherVisuals": true
+  }
+}
+

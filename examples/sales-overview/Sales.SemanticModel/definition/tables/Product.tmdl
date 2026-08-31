@@ -1,0 +1,3 @@
+﻿table Product
+	column Category
+		dataType: string

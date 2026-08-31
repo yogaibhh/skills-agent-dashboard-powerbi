@@ -1,0 +1,8 @@
+﻿table Sales
+	measure 'Total Sales' = SUM(Sales[Amount])
+		formatString: #,0
+	measure 'Total Orders' = COUNTROWS(Sales)
+	column Amount
+		dataType: double
+	column OrderDateKey
+		dataType: int64

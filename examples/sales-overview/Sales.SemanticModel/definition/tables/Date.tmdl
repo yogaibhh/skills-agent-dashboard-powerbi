@@ -1,0 +1,5 @@
+﻿table 'Date'
+	column Date
+		dataType: dateTime
+	column Year
+		dataType: int64
