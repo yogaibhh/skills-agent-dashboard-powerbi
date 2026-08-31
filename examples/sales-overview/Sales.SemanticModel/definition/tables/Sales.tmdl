@@ -1,4 +1,4 @@
-﻿table Sales
+table Sales
 	measure 'Total Sales' = SUM(Sales[Amount])
 		formatString: #,0
 	measure 'Total Orders' = COUNTROWS(Sales)

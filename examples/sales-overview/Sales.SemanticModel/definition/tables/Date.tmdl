@@ -1,4 +1,4 @@
-﻿table 'Date'
+table 'Date'
 	column Date
 		dataType: dateTime
 	column Year

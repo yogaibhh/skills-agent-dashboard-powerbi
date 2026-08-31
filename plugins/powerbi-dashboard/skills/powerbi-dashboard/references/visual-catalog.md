@@ -140,11 +140,23 @@ run the round-trip procedure below and copy the real JSON.
 1. In Power BI Desktop, create the visual you want and bind its fields by hand.
 2. Save as a **PBIP** project (File > Save as > `.pbip`), or enable
    *Options > Preview features > Power BI Project (.pbip) save option*.
-3. Open `<Name>.Report/definition/pages/*/visuals/*/visual.json` and read the real JSON.
-4. Copy the `visualType`, the `queryState` role names, and any `objects` you need into your generator.
+3. Run the harvester over the saved project:
 
-This is the only reliable source for undocumented visuals, and it takes about two minutes. Use it
-rather than shipping a guess.
+   ```powershell
+   scripts/harvest-visual-schema.ps1 -Path "C:\pbi\MyProject" -OutputPath ".\out"
+   ```
+
+4. Read `out/visual-schema.md`. For every visual type it found, it reports the exact `queryState`
+   role names, whether each role carries a `Measure` or a `Column`, how many fields a role was seen
+   holding, which `objects` formatting groups are in use, and the richest `queryState` it saw -
+   ready to paste in here.
+
+This is the only reliable source for undocumented visuals. Do it once, for as many visual types as you
+care about, and the guessing is gone permanently: build a throwaway report containing one of every
+visual you want supported, bind each one, save as PBIP, harvest.
+
+You can also point the harvester at reports you already have - it aggregates across any number of
+them, and reports how often each role appeared and in which report.
 
 ---
 
@@ -535,7 +547,9 @@ Prefer `ThemeDataColor` over hex where you can - it keeps the report consistent 
 
 Visual-level filters live in a `filterConfig` object on the visual. The exact filter body varies by
 Power BI version, so **do not hand-write it** - author one Top-N filter in Desktop, save as PBIP, and
-copy the resulting `filterConfig` block. The structure is:
+run `scripts/harvest-visual-schema.ps1` over it. The harvester has a dedicated Filters section that
+emits one complete, copyable example per filter type (`TopN`, `Categorical`, `Advanced`, ...). The
+structure is:
 
 ```json
 "filterConfig": {

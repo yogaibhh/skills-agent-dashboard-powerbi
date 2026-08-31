@@ -45,6 +45,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Write-Utf8NoBom {
+    # PBIR files that Power BI writes carry no byte-order mark; Set-Content -Encoding utf8 adds one
+    # under Windows PowerShell 5.1. Match the format exactly instead.
+    param([string] $Path, [string] $Content)
+    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    [System.IO.File]::WriteAllText($full, $Content, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 # ---------------------------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------------------------
@@ -434,7 +442,7 @@ if ($outDir -and -not (Test-Path -LiteralPath $outDir)) {
     New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 }
 
-Set-Content -LiteralPath $OutputPath -Value $sb.ToString() -Encoding utf8
+Write-Utf8NoBom -Path $OutputPath -Content $sb.ToString()
 $OutputPath = (Resolve-Path -LiteralPath $OutputPath).Path
 
 Write-Host ''

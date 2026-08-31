@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.1.0/schema.json",
   "name": "aaaa111122223333bbbb",
   "position": { "x": 24, "y": 16, "z": 9000, "width": 608, "height": 56, "tabOrder": 6000 },

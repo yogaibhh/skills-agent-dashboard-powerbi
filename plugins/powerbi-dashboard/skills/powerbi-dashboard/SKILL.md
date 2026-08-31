@@ -210,5 +210,10 @@ A dashboard is not done until all of these hold:
 | `scripts/new-dashboard.ps1` | Scaffold a PBIP report folder bound to a semantic model |
 | `scripts/preview-pbir.ps1` | Render an HTML wireframe of every page - use it after writing visuals |
 | `scripts/validate-pbir.ps1` | Check bindings, geometry, page indexing and field references |
+| `scripts/harvest-visual-schema.ps1` | Extract real role names and `filterConfig` bodies from existing reports |
 
 Run each with `-?` for full parameter help.
+
+Reach for the harvester whenever you need a visual type the catalog lists under "verify before use",
+or a `filterConfig` shape. Point it at any PBIP project and it reports what that report actually
+contains - which beats guessing and beats reading JSON by hand.

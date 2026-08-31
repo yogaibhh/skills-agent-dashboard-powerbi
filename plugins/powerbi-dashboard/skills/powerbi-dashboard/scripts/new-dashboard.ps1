@@ -56,6 +56,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Write-Utf8NoBom {
+    # PBIR files that Power BI writes carry no byte-order mark; Set-Content -Encoding utf8 adds one
+    # under Windows PowerShell 5.1. Match the format exactly instead.
+    param([string] $Path, [string] $Content)
+    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    [System.IO.File]::WriteAllText($full, $Content, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 function New-PbirName {
     # 20 lowercase hex characters - the token format PBIR uses for internal object names.
     $chars = '0123456789abcdef'.ToCharArray()
@@ -113,7 +121,7 @@ $platform = @'
 }
 '@
 $platform = $platform.Replace('__NAME__', $Name).Replace('__LOGICALID__', $logicalId)
-Set-Content -Path (Join-Path $reportFolder '.platform') -Value $platform -Encoding utf8
+Write-Utf8NoBom -Path (Join-Path $reportFolder '.platform') -Content $platform
 
 # --- definition.pbir ---------------------------------------------------------------------------
 
@@ -148,7 +156,7 @@ else {
     $pbir = $pbir.Replace('__MODELPATH__', $ModelPath.Replace('\', '\\'))
     $binding = "byPath -> $ModelPath"
 }
-Set-Content -Path (Join-Path $reportFolder 'definition.pbir') -Value $pbir -Encoding utf8
+Write-Utf8NoBom -Path (Join-Path $reportFolder 'definition.pbir') -Content $pbir
 
 # --- pages -------------------------------------------------------------------------------------
 
@@ -162,7 +170,7 @@ $pagesJson = @'
 }
 '@
 $pagesJson = $pagesJson.Replace('__PAGE__', $pageToken)
-Set-Content -Path (Join-Path $reportFolder 'definition\pages\pages.json') -Value $pagesJson -Encoding utf8
+Write-Utf8NoBom -Path (Join-Path $reportFolder 'definition\pages\pages.json') -Content $pagesJson
 
 $pageJson = @'
 {
@@ -175,7 +183,7 @@ $pageJson = @'
 }
 '@
 $pageJson = $pageJson.Replace('__PAGE__', $pageToken).Replace('__DISPLAY__', $PageName)
-Set-Content -Path (Join-Path $reportFolder 'definition\pages\overview\page.json') -Value $pageJson -Encoding utf8
+Write-Utf8NoBom -Path (Join-Path $reportFolder 'definition\pages\overview\page.json') -Content $pageJson
 
 # --- .pbip -------------------------------------------------------------------------------------
 
@@ -196,7 +204,7 @@ $pbip = @'
 }
 '@
 $pbip = $pbip.Replace('__FOLDER__', "$Name.Report")
-Set-Content -Path $pbipFile -Value $pbip -Encoding utf8
+Write-Utf8NoBom -Path $pbipFile -Content $pbip
 
 # --- report ------------------------------------------------------------------------------------
 

@@ -1,5 +1,7 @@
 # Power BI Dashboard Skill
 
+[![CI](https://github.com/yogaibhh/skills-agent-dashboard-powerbi/actions/workflows/ci.yml/badge.svg)](https://github.com/yogaibhh/skills-agent-dashboard-powerbi/actions/workflows/ci.yml)
+
 An agent skill that generates **complete, field-bound Power BI dashboards** from a semantic model -
 not a single visual at a time, but a whole laid-out report you can open in Power BI Desktop or deploy
 to a Fabric workspace.
@@ -23,6 +25,7 @@ This skill fills that gap. It is the generation layer:
 | What JSON does a bound visual look like? | A catalog of complete, query-bound `visual.json` per visual type |
 | Does the layout actually look right? | An HTML wireframe renderer - see the page without opening Power BI |
 | Did it come out right? | A PowerShell validator that checks bindings, geometry and field references |
+| What about visual types nobody documented? | A harvester that reads the real schema out of existing reports |
 
 The renderer matters more than it sounds. Generating a report is otherwise done blind: the agent
 writes coordinates and hopes. `preview-pbir.ps1` closes that loop in seconds, so layout mistakes get
@@ -103,7 +106,7 @@ folder -> writes bound visuals -> validates -> hands you the `.pbip` or deploys 
 
 ## Scripts
 
-All three live in `plugins/powerbi-dashboard/skills/powerbi-dashboard/scripts/` and are usable on their own.
+All four live in `plugins/powerbi-dashboard/skills/powerbi-dashboard/scripts/` and are usable on their own.
 
 **Scaffold a report folder**
 
@@ -129,6 +132,20 @@ outlined in red and listed under the page.
 See [examples/sales-overview/preview.html](examples/sales-overview/preview.html) for generated output
 (download and open it - GitHub will not render it inline).
 
+**Harvest the real schema of any visual type**
+
+```powershell
+.\harvest-visual-schema.ps1 -Path "C:\pbi\MyProject" -OutputPath ".\out"
+```
+
+Scans a PBIP project (or many) and reports, per visual type: the exact `queryState` role names,
+whether each role carries a Measure or a Column, the formatting groups in use, the richest example it
+found, and complete `filterConfig` bodies grouped by filter type.
+
+This is how you extend the catalog without guessing. Build a throwaway report in Desktop containing
+one of every visual you want supported, bind them, save as PBIP, harvest - and the role names are
+facts instead of assumptions.
+
 **Validate before opening or deploying**
 
 ```powershell
@@ -153,6 +170,20 @@ Checks performed:
 Exit code is 1 when there are errors (add `-FailOnWarning` to fail on warnings too), so it drops
 straight into CI.
 
+## Tests
+
+```powershell
+.	estsun-tests.ps1
+```
+
+35 tests covering all four scripts: scaffolding, every validator rule, wireframe rendering and schema
+harvesting. No Pester, no modules, no network - it runs on Windows PowerShell 5.1 and PowerShell 7,
+the same range the scripts support. `-Filter "validate*"` runs a subset; `-KeepWorkspace` leaves the
+fixtures behind for inspection.
+
+CI runs the suite on both PowerShell editions, plus PSScriptAnalyzer, plus a check that the committed
+example still validates and its preview is up to date.
+
 ## Repository layout
 
 ```
@@ -168,9 +199,12 @@ plugins/powerbi-dashboard/
     ├── scripts/
     │   ├── new-dashboard.ps1
     │   ├── preview-pbir.ps1
-    │   └── validate-pbir.ps1
+    │   ├── validate-pbir.ps1
+    │   └── harvest-visual-schema.ps1
     └── assets/template/                 # empty PBIP scaffold
 examples/sales-overview/                 # validated worked example + rendered preview
+tests/run-tests.ps1                      # dependency-free test suite
+.github/workflows/ci.yml                 # tests on PS 5.1 + 7, lint, example check
 ```
 
 ## Scope
@@ -185,9 +219,12 @@ REST API and has no file format.
 ## Notes on accuracy
 
 The visual catalog separates role names that are **confirmed** from ones that **vary by version**. For
-anything in the second group, the skill tells the agent to round-trip: build the visual once in
-Desktop, save as PBIP, and copy the real JSON. That is deliberate - a guessed `queryState` role
-produces a broken visual, and two minutes of round-tripping is cheaper than debugging one.
+anything in the second group, the skill tells the agent to harvest rather than guess - a wrong
+`queryState` role produces a broken visual with no error message, and `harvest-visual-schema.ps1`
+turns a two-minute round-trip in Desktop into verified schema.
+
+Generated files carry no UTF-8 BOM, matching what Power BI itself writes. The test suite asserts this,
+because it is the kind of difference that is invisible until something downstream refuses the file.
 
 ## License
 
