@@ -26,7 +26,7 @@ It stays out of the way for single-visual edits (`powerbi-report-authoring`), mo
 skills/powerbi-dashboard/
 ├── SKILL.md              # the six-step workflow
 ├── references/           # discovery, blueprints, visual catalog, deployment
-├── scripts/              # new-dashboard.ps1, validate-pbir.ps1
+├── scripts/              # new-dashboard.ps1, preview-pbir.ps1, validate-pbir.ps1
 └── assets/template/      # empty PBIP scaffold copied by new-dashboard.ps1
 ```
 

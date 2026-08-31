@@ -9,6 +9,15 @@ validator with zero findings:
     -ModelPath  ".\Sales.SemanticModel"
 ```
 
+[preview.html](preview.html) is the wireframe this report renders to - download and open it in a
+browser (GitHub will not render it inline). Regenerate it with:
+
+```powershell
+..\..\plugins\powerbi-dashboard\skills\powerbi-dashboard\scripts\preview-pbir.ps1 `
+    -ReportPath ".\Sales Overview.Report" `
+    -OutputPath ".\preview.html" -Open
+```
+
 ## What is here
 
 ```

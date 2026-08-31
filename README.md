@@ -21,7 +21,12 @@ This skill fills that gap. It is the generation layer:
 | Which fields belong on a dashboard? | A discovery + classification procedure, with DAX cardinality checks |
 | Where do visuals go? | Four blueprints with exact `x`/`y`/`width`/`height` on a 12-column grid |
 | What JSON does a bound visual look like? | A catalog of complete, query-bound `visual.json` per visual type |
+| Does the layout actually look right? | An HTML wireframe renderer - see the page without opening Power BI |
 | Did it come out right? | A PowerShell validator that checks bindings, geometry and field references |
+
+The renderer matters more than it sounds. Generating a report is otherwise done blind: the agent
+writes coordinates and hopes. `preview-pbir.ps1` closes that loop in seconds, so layout mistakes get
+caught during generation rather than after launching Desktop.
 
 ## What it produces
 
@@ -98,7 +103,7 @@ folder -> writes bound visuals -> validates -> hands you the `.pbip` or deploys 
 
 ## Scripts
 
-Both live in `plugins/powerbi-dashboard/skills/powerbi-dashboard/scripts/` and are usable on their own.
+All three live in `plugins/powerbi-dashboard/skills/powerbi-dashboard/scripts/` and are usable on their own.
 
 **Scaffold a report folder**
 
@@ -109,6 +114,20 @@ Both live in `plugins/powerbi-dashboard/skills/powerbi-dashboard/scripts/` and a
 ```
 
 Use `-ByConnection <semanticModelId>` instead of `-ModelPath` when targeting a workspace model.
+
+**Preview the layout as a wireframe**
+
+```powershell
+.\preview-pbir.ps1 -ReportPath "C:\pbi\SalesProject\Sales Overview.Report" -Open
+```
+
+Writes a self-contained HTML file - one to-scale SVG per page, each visual drawn as a labelled box
+showing its folder name, visual type and field bindings. Boxes are colour-coded by family (card,
+chart, table, slicer, text), and anything overlapping, off-canvas, or missing its field bindings is
+outlined in red and listed under the page.
+
+See [examples/sales-overview/preview.html](examples/sales-overview/preview.html) for generated output
+(download and open it - GitHub will not render it inline).
 
 **Validate before opening or deploying**
 
@@ -148,9 +167,10 @@ plugins/powerbi-dashboard/
     │   └── deployment.md                # Desktop, Fabric, rebinding
     ├── scripts/
     │   ├── new-dashboard.ps1
+    │   ├── preview-pbir.ps1
     │   └── validate-pbir.ps1
     └── assets/template/                 # empty PBIP scaffold
-examples/sales-overview/                 # validated worked example
+examples/sales-overview/                 # validated worked example + rendered preview
 ```
 
 ## Scope

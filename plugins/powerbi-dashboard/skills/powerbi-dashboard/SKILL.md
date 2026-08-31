@@ -28,6 +28,9 @@ provide: a **field-classification procedure**, **layout blueprints with exact co
    readable (`overview`, `salesByRegion`) - the folder name and the internal `name` are independent.
 5. **Validate before declaring done.** Run `scripts/validate-pbir.ps1`. It catches unbound visuals,
    overlaps, out-of-bounds positions, orphaned pages and broken index files.
+6. **Look at what you generated.** Run `scripts/preview-pbir.ps1` and read the wireframe it produces.
+   Writing coordinates blind is how dashboards end up technically valid and visually wrong - the
+   preview is the only feedback you get without launching Power BI Desktop.
 
 ## Prerequisites
 
@@ -108,15 +111,41 @@ Always include, in this order:
 3. the blueprint's chart slots;
 4. optionally a **detail table** at the bottom.
 
-### Step 6 - Validate, then hand off
+### Step 6 - Preview, validate, then hand off
+
+**Preview first.** Render the wireframe and actually read it:
+
+```powershell
+scripts/preview-pbir.ps1 -ReportPath "C:\path\to\Sales Overview.Report"
+```
+
+This writes a self-contained HTML file: one to-scale SVG per page, every visual drawn as a labelled
+box showing its folder name, type and field bindings, with anything broken outlined in red. Check
+against the blueprint you chose:
+
+- Does each row line up, and does every row end at x = 1256?
+- Is the reading order right - title, KPIs, primary chart, supporting, detail?
+- Any box carrying only its folder name? That means no bindings were found.
+- Any red box or issue in the list under the page?
+
+If something looks wrong, fix the `visual.json` and re-render. This loop costs seconds; discovering
+the same problem after opening Desktop costs minutes.
+
+**Then validate:**
 
 ```powershell
 scripts/validate-pbir.ps1 -ReportPath "C:\path\to\Sales Overview.Report" -ModelPath "C:\path\to\Sales.SemanticModel"
 ```
 
+The two are complementary: the preview shows you geometry and shape, the validator proves the field
+references actually resolve against the model.
+
 Fix every Error before reporting completion; report Warnings to the user with your reasoning. Then
 either open the `.pbip` in Power BI Desktop or deploy - see
 [references/deployment.md](references/deployment.md).
+
+When you hand off, give the user the preview file path alongside the `.pbip` - it is the fastest way
+for them to review the layout without opening anything.
 
 ## Workflow: add a page to an existing dashboard
 
@@ -146,6 +175,7 @@ A dashboard is not done until all of these hold:
 - [ ] Visuals in the same row share the same `y` and `height`.
 - [ ] Charts with more than ~8 categories are sorted and Top-N filtered.
 - [ ] Every visual has a meaningful title, or `title.show = false` when the content is self-evident.
+- [ ] `preview-pbir.ps1` was rendered and read, and the layout matches the blueprint.
 - [ ] `validate-pbir.ps1` reports zero Errors.
 
 ## Anti-patterns
@@ -172,3 +202,13 @@ A dashboard is not done until all of these hold:
 - [references/visual-catalog.md](references/visual-catalog.md) - complete, bound `visual.json` per type.
 - [references/deployment.md](references/deployment.md) - open in Desktop, deploy to Fabric, rebind.
 - [PBIR format docs](https://learn.microsoft.com/power-bi/developer/projects/projects-report?tabs=v2%2Cdesktop#pbir-format)
+
+### Scripts
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/new-dashboard.ps1` | Scaffold a PBIP report folder bound to a semantic model |
+| `scripts/preview-pbir.ps1` | Render an HTML wireframe of every page - use it after writing visuals |
+| `scripts/validate-pbir.ps1` | Check bindings, geometry, page indexing and field references |
+
+Run each with `-?` for full parameter help.
