@@ -76,7 +76,8 @@ Rules that matter:
 
 - `queryRef` is always `Table.Field` - literally, with the dot, no brackets, no quotes.
 - `nativeQueryRef` is the bare field name; it is what shows in the field well and default titles.
-- `active: true` goes on the **first** projection of a role only. Omit it elsewhere.
+- `active: true` goes on the **leading Column** of a role, and **never on a Measure**. Verified
+  against a Desktop-authored report: measure projections carry no `active` at all.
 - Both are case-sensitive and must match the model exactly.
 - A date column binds like any other column. You do not need the auto date hierarchy; binding the raw
   date column is more portable and survives model changes better.
@@ -104,6 +105,27 @@ drops the setting:
 
 Which `queryState` keys a visual type accepts.
 
+### Drill hierarchies
+
+Several Columns in one `Category` role *is* a drill hierarchy - there is no separate construct. The
+first level carries `active: true`; the reader drills down through the rest.
+
+```json
+"Category": {
+  "projections": [
+    { "field": { "Column": { ... "Property": "Year" } },    "queryRef": "Date.Year",    "nativeQueryRef": "Year",    "active": true },
+    { "field": { "Column": { ... "Property": "Quarter" } }, "queryRef": "Date.Quarter", "nativeQueryRef": "Quarter" },
+    { "field": { "Column": { ... "Property": "Month" } },   "queryRef": "Date.Month",   "nativeQueryRef": "Month" }
+  ]
+}
+```
+
+This is the cheapest interactivity available, and it is also the answer to a category with too many
+values: put a small column above the big one (`Price Band` then `ProductName`) so the chart opens with
+three bars instead of 3,768.
+
+`Y` accepts several measures the same way, with no `active` on any of them.
+
 ### Confirmed
 
 | visualType | Roles |
@@ -121,7 +143,8 @@ Which `queryState` keys a visual type accepts.
 | `stackedAreaChart` | `Category`, `Y`, `Series` |
 | `pieChart` | `Category`, `Y` |
 | `donutChart` | `Category`, `Y` |
-| `tableEx` (table) | `Values` |
+| `tableEx` (table) | `Values` (leading Column carries `active`, measures do not) |
+| `scatterChart` | `Category`, `X`, `Y`, `Size` |
 | `pivotTable` (matrix) | `Rows`, `Columns`, `Values` |
 | `textbox` | none |
 | `image` | none |
@@ -131,7 +154,7 @@ Which `queryState` keys a visual type accepts.
 These types exist and are commonly used, but their role names shift between versions. Do not guess -
 run the round-trip procedure below and copy the real JSON.
 
-`gauge`, `kpi`, `scatterChart`, `treemap`, `funnel`, `waterfallChart`, `lineStackedColumnComboChart`,
+`gauge`, `kpi`, `treemap`, `funnel`, `waterfallChart`, `lineStackedColumnComboChart`,
 `lineClusteredColumnComboChart`, `map`, `filledMap`, `shapeMap`, `ribbonChart`, `decompositionTreeVisual`,
 `keyDriversVisual`, and every custom/AppSource visual.
 
@@ -331,17 +354,18 @@ Bind a **column**, never a measure. One field only.
             }
           ]
         }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "[Fact Table]" } }, "Property": "[Measure]" } },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": false
       }
     },
-    "sortDefinition": {
-      "sort": [
-        {
-          "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "[Fact Table]" } }, "Property": "[Measure]" } },
-          "direction": "Descending"
-        }
-      ],
-      "isDefaultSort": true
-    },
+
     "visualContainerObjects": {
       "title": [
         {
@@ -477,6 +501,29 @@ scrolling and stop being readable.
 Keep `Columns` under ~8 distinct values or the matrix scrolls sideways.
 
 ---
+
+## Sorting
+
+`sortDefinition` goes **inside `query`, beside `queryState`** - not as a sibling of `query`.
+
+```json
+"visual": {
+  "visualType": "barChart",
+  "query": {
+    "queryState": { ... },
+    "sortDefinition": {
+      "sort": [ { "field": { "Measure": { ... } }, "direction": "Descending" } ],
+      "isDefaultSort": false
+    }
+  }
+}
+```
+
+Getting the level wrong is punished silently and inconsistently. Observed in Power BI Desktop with
+`sortDefinition` one level too high: a bar chart ignored the sort and fell back to alphabetical, and a
+table rendered **only its first column**, dropping every other projection. No error, no warning.
+
+`isDefaultSort` is `false` for a sort the author chose. Desktop writes `false`.
 
 ## Formatting recipes
 

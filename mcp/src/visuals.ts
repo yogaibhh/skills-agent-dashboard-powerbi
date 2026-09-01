@@ -28,6 +28,7 @@ export const ROLES: Record<string, string[]> = {
   pieChart: ['Category', 'Y'],
   donutChart: ['Category', 'Y'],
   tableEx: ['Values'],
+  scatterChart: ['Category', 'X', 'Y', 'Size'],
   pivotTable: ['Rows', 'Columns', 'Values'],
   textbox: [],
   image: [],
@@ -40,7 +41,6 @@ export const ROLES: Record<string, string[]> = {
 export const UNVERIFIED_TYPES = new Set([
   'gauge',
   'kpi',
-  'scatterChart',
   'treemap',
   'funnel',
   'waterfallChart',
@@ -165,20 +165,29 @@ export function buildVisual(options: BuildVisualOptions): Record<string, unknown
   const visual: Record<string, unknown> = { visualType };
 
   const state = queryState(bindings);
-  if (state) visual.query = { queryState: state };
+  const query: Record<string, unknown> | undefined = state ? { queryState: state } : undefined;
 
   if (sortBy) {
+    if (!query) {
+      throw new Error('sortBy needs bindings to sort - a visual with no fields cannot be sorted.');
+    }
+    // sortDefinition lives INSIDE query, beside queryState. Power BI silently degrades a visual that
+    // carries it as a sibling of query: the sort is ignored, and a table drops every projection after
+    // the first. Verified against three visuals in a Desktop-authored report.
     const kind = sortBy.kind ?? 'Measure';
-    visual.sortDefinition = {
+    query.sortDefinition = {
       sort: [
         {
           field: { [kind]: { Expression: { SourceRef: { Entity: sortBy.table } }, Property: sortBy.field } },
           direction: sortBy.direction ?? 'Descending',
         },
       ],
-      isDefaultSort: true,
+      // Desktop writes false for a sort the author chose; true would mark it as the visual's default.
+      isDefaultSort: false,
     };
   }
+
+  if (query) visual.query = query;
 
   if (Object.keys(objects).length > 0) visual.objects = objects;
   if (Object.keys(containerObjects).length > 0) visual.visualContainerObjects = containerObjects;

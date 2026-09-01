@@ -90,10 +90,29 @@ test('no blueprint places two visuals on top of each other', () => {
   }
 });
 
-test('projection marks only the first field of a role as active', () => {
-  const state = queryState({ Y: [M('Sales', 'Total Sales'), M('Sales', 'Total Orders')] });
-  assert.equal(state.Y.projections[0].active, true);
-  assert.equal(state.Y.projections[1].active, undefined);
+test('active marks the leading column of a role and never a measure', () => {
+  // Verified against a Desktop-authored report: measures carry no `active`, and on a Category
+  // holding several columns only the first does - that is the top of the drill hierarchy.
+  const measuresOnly = queryState({ Y: [M('Sales', 'Total Sales'), M('Sales', 'Total Orders')] });
+  assert.equal(measuresOnly.Y.projections[0].active, undefined);
+  assert.equal(measuresOnly.Y.projections[1].active, undefined);
+
+  const drill = queryState({ Category: [C('Date', 'Year'), C('Date', 'Quarter'), C('Date', 'Month')] });
+  assert.equal(drill.Category.projections[0].active, true);
+  assert.equal(drill.Category.projections[1].active, undefined);
+  assert.equal(drill.Category.projections[2].active, undefined);
+});
+
+test('a drill hierarchy is several columns in one role', () => {
+  const visual = buildVisual({
+    visualType: 'lineChart',
+    position: { x: 0, y: 0, z: 0, width: 400, height: 200, tabOrder: 0 },
+    bindings: { Category: [C('Date', 'Year'), C('Date', 'Quarter')], Y: [M('Sales', 'Total Sales')] },
+  });
+  const cat = visual.visual.query.queryState.Category.projections;
+  assert.equal(cat.length, 2);
+  assert.equal(cat[0].active, true);
+  assert.equal(visual.visual.query.queryState.Y.projections[0].active, undefined);
 });
 
 test('projection builds the queryRef Power BI expects', () => {
@@ -321,13 +340,74 @@ test('apply_blueprint skips slots it cannot fill instead of emitting empty visua
   assert.equal(validation.errors, 0);
 });
 
+test('sortDefinition lives inside query, not beside it', () => {
+  // Regression: it used to be emitted as a sibling of query. Power BI silently degraded such a
+  // visual - the sort was ignored and a table rendered only its first column. Verified placement
+  // against three visuals in a Desktop-authored report.
+  const visual = buildVisual({
+    visualType: 'tableEx',
+    position: { x: 0, y: 0, z: 0, width: 400, height: 200, tabOrder: 0 },
+    bindings: { Values: [C('Product', 'Category'), M('Sales', 'Total Sales')] },
+    sortBy: { table: 'Sales', field: 'Total Sales', kind: 'Measure', direction: 'Descending' },
+  });
+
+  assert.equal(visual.visual.sortDefinition, undefined, 'sortDefinition must not sit beside query');
+  assert.ok(visual.visual.query.sortDefinition, 'sortDefinition must sit inside query');
+  assert.deepEqual(Object.keys(visual.visual.query), ['queryState', 'sortDefinition']);
+  assert.equal(visual.visual.query.sortDefinition.isDefaultSort, false);
+  assert.equal(visual.visual.query.sortDefinition.sort[0].direction, 'Descending');
+  assert.equal(visual.visual.query.sortDefinition.sort[0].field.Measure.Property, 'Total Sales');
+});
+
+test('a table keeps every projection it was given', () => {
+  const fields = [C('Product', 'Category'), M('Sales', 'Total Sales'), M('Sales', 'Total Orders')];
+  const visual = buildVisual({
+    visualType: 'tableEx',
+    position: { x: 0, y: 0, z: 0, width: 400, height: 200, tabOrder: 0 },
+    bindings: { Values: fields },
+  });
+  const projections = visual.visual.query.queryState.Values.projections;
+  assert.equal(projections.length, 3);
+  // Matches Desktop output: active on the leading column only, never on a measure.
+  assert.equal(projections[0].active, true);
+  assert.equal(projections[1].active, undefined);
+  assert.equal(projections[2].active, undefined);
+});
+
+test('sorting a visual with no bindings is refused', () => {
+  assert.throws(
+    () =>
+      buildVisual({
+        visualType: 'textbox',
+        position: { x: 0, y: 0, z: 0, width: 100, height: 50, tabOrder: 0 },
+        text: 'hi',
+        sortBy: { table: 'Sales', field: 'Total Sales' },
+      }),
+    /cannot be sorted/,
+  );
+});
+
+test('scatterChart accepts the roles harvested from a real report', () => {
+  const visual = buildVisual({
+    visualType: 'scatterChart',
+    position: { x: 0, y: 0, z: 0, width: 400, height: 200, tabOrder: 0 },
+    bindings: {
+      Category: [C('Product', 'Category')],
+      X: [M('Sales', 'Total Sales')],
+      Y: [M('Sales', 'Total Orders')],
+      Size: [M('Sales', 'Total Quantity')],
+    },
+  });
+  assert.deepEqual(Object.keys(visual.visual.query.queryState).sort(), ['Category', 'Size', 'X', 'Y']);
+});
+
 test('a ranked bar chart is sorted by its measure', async () => {
   const { created } = await buildDashboard('sort', FULL_ASSIGNMENT);
   const file = path.join(created.reportPath, 'definition', 'pages', created.pageFolder, 'visuals', 'breakdown', 'visual.json');
   const visual = JSON.parse(await fs.readFile(file, 'utf8'));
 
-  assert.equal(visual.visual.sortDefinition.sort[0].direction, 'Descending');
-  assert.equal(visual.visual.sortDefinition.sort[0].field.Measure.Property, 'Total Sales');
+  assert.equal(visual.visual.query.sortDefinition.sort[0].direction, 'Descending');
+  assert.equal(visual.visual.query.sortDefinition.sort[0].field.Measure.Property, 'Total Sales');
 });
 
 test('validation catches a field that is not in the model', async () => {

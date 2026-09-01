@@ -134,7 +134,12 @@ export function queryState(bindings: Bindings): Record<string, unknown> | undefi
 
   const state: Record<string, unknown> = {};
   for (const [role, fields] of roles) {
-    state[role] = { projections: fields.map((f, i) => projection(f, i === 0)) };
+    // Desktop marks `active` on the leading Column of a role and never on a Measure. On a Category
+    // holding several columns that Column is the top of a drill hierarchy; on a measure it means
+    // nothing. Matching Desktop exactly matters here - see the sortDefinition note in visuals.ts.
+    state[role] = {
+      projections: fields.map((f, i) => projection(f, i === 0 && f.kind === 'Column')),
+    };
   }
   return state;
 }
