@@ -30,4 +30,8 @@ skills/powerbi-dashboard/
 └── assets/template/      # empty PBIP scaffold copied by new-dashboard.ps1
 ```
 
+An MCP server that performs the same generation through typed tools (so the model never types
+`queryState`) lives in [mcp/](../../mcp/). When its tools are present, SKILL.md tells the agent to
+prefer them.
+
 See the [repository README](../../README.md) for installation and usage.

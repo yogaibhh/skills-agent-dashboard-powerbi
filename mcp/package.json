@@ -1,0 +1,31 @@
+{
+  "name": "powerbi-dashboard-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that generates Power BI dashboards in PBIR format from a semantic model.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "powerbi-dashboard-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test \"test/**/*.test.js\"",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["mcp", "power-bi", "powerbi", "pbir", "pbip", "dashboard", "fabric"],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

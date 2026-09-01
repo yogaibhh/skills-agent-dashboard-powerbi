@@ -62,3 +62,37 @@ jobs:
           $model = './examples/sales-overview/Sales.SemanticModel'
           & "$scripts/validate-pbir.ps1" -ReportPath $report -ModelPath $model -FailOnWarning
           & "$scripts/preview-pbir.ps1" -ReportPath $report -OutputPath "$env:RUNNER_TEMP/preview.html"
+
+  mcp-node-20:
+    name: MCP server on Node 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - name: Install
+        working-directory: mcp
+        run: npm ci
+      - name: Typecheck, build and test
+        working-directory: mcp
+        run: npm test
+
+  mcp-node-22:
+    name: MCP server on Node 22
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - name: Install
+        working-directory: mcp
+        run: npm ci
+      - name: Typecheck, build and test
+        working-directory: mcp
+        run: npm test

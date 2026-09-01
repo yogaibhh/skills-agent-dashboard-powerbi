@@ -2,11 +2,15 @@
 
 [![CI](https://github.com/yogaibhh/skills-agent-dashboard-powerbi/actions/workflows/ci.yml/badge.svg)](https://github.com/yogaibhh/skills-agent-dashboard-powerbi/actions/workflows/ci.yml)
 
-An agent skill that generates **complete, field-bound Power BI dashboards** from a semantic model -
-not a single visual at a time, but a whole laid-out report you can open in Power BI Desktop or deploy
-to a Fabric workspace.
+Generate **complete, field-bound Power BI dashboards** from a semantic model - not a single visual at
+a time, but a whole laid-out report you can open in Power BI Desktop or deploy to a Fabric workspace.
 
-Works with Claude Code, and with any agent runtime that reads `SKILL.md`-style skills.
+Ships two ways to do it:
+
+- an **agent skill** that teaches a model the PBIR format, with PowerShell helpers - works with Claude
+  Code and any runtime that reads `SKILL.md`-style skills;
+- an **MCP server** that builds the JSON itself, so the model picks fields and never types a
+  `queryState` - see [mcp/](mcp/).
 
 ## Why this exists
 
@@ -26,6 +30,7 @@ This skill fills that gap. It is the generation layer:
 | Does the layout actually look right? | An HTML wireframe renderer - see the page without opening Power BI |
 | Did it come out right? | A PowerShell validator that checks bindings, geometry and field references |
 | What about visual types nobody documented? | A harvester that reads the real schema out of existing reports |
+| How do we stop the model typing JSON at all? | An MCP server whose tools take fields, not JSON |
 
 The renderer matters more than it sounds. Generating a report is otherwise done blind: the agent
 writes coordinates and hopes. `preview-pbir.ps1` closes that loop in seconds, so layout mistakes get
@@ -170,19 +175,53 @@ Checks performed:
 Exit code is 1 when there are errors (add `-FailOnWarning` to fail on warnings too), so it drops
 straight into CI.
 
+## MCP server
+
+The skill still leaves the model typing `visual.json`. A role name that does not exist, a literal
+missing its `L` suffix, `active: true` on the wrong projection - Power BI accepts all of it silently
+and renders an empty box.
+
+[mcp/](mcp/) removes that class of failure. Tools take a field assignment and build the JSON:
+
+```
+inspect_semantic_model  →  create_report  →  apply_blueprint  →  preview_report  →  validate_report
+```
+
+Twelve tools, covering discovery, scaffolding, whole-page generation, single visuals, preview,
+validation and rebinding. Against this repository's example model, `apply_blueprint` produces a
+seven-visual page that both the TypeScript and the PowerShell validator pass with zero findings.
+
+```bash
+cd mcp && npm install && npm run build
+claude mcp add powerbi-dashboard -- node "$PWD/dist/index.js"
+```
+
+See [mcp/README.md](mcp/README.md) for the full tool list and design notes.
+
 ## Tests
 
 ```powershell
-.	estsun-tests.ps1
+.	ests
+un-tests.ps1
 ```
 
-35 tests covering all four scripts: scaffolding, every validator rule, wireframe rendering and schema
+**PowerShell scripts** — 35 tests covering all four scripts: scaffolding, every validator rule, wireframe rendering and schema
 harvesting. No Pester, no modules, no network - it runs on Windows PowerShell 5.1 and PowerShell 7,
 the same range the scripts support. `-Filter "validate*"` runs a subset; `-KeepWorkspace` leaves the
 fixtures behind for inspection.
 
-CI runs the suite on both PowerShell editions, plus PSScriptAnalyzer, plus a check that the committed
-example still validates and its preview is up to date.
+**MCP server** — 37 tests:
+
+```bash
+cd mcp && npm test
+```
+
+Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, TMDL reading,
+validation rules and the renderer. Protocol tests spawn the real server over stdio and drive it with a
+real MCP client.
+
+CI runs both suites - PowerShell on 5.1 and 7, Node on 20 and 22 - plus PSScriptAnalyzer and a check
+that the committed example still validates.
 
 ## Repository layout
 
@@ -203,8 +242,12 @@ plugins/powerbi-dashboard/
     │   └── harvest-visual-schema.ps1
     └── assets/template/                 # empty PBIP scaffold
 examples/sales-overview/                 # validated worked example + rendered preview
-tests/run-tests.ps1                      # dependency-free test suite
-.github/workflows/ci.yml                 # tests on PS 5.1 + 7, lint, example check
+mcp/                                     # MCP server (TypeScript)
+├── src/                                 # pbir, tmdl, blueprints, visuals, generate, validate, preview
+├── test/                                # unit + stdio protocol tests
+└── README.md
+tests/run-tests.ps1                      # dependency-free PowerShell test suite
+.github/workflows/ci.yml                 # PowerShell + Node tests, lint, example check
 ```
 
 ## Scope

@@ -32,6 +32,28 @@ provide: a **field-classification procedure**, **layout blueprints with exact co
    Writing coordinates blind is how dashboards end up technically valid and visually wrong - the
    preview is the only feedback you get without launching Power BI Desktop.
 
+## If the powerbi-dashboard MCP server is available, use it
+
+Check your tool list for `apply_blueprint`, `add_visual` and `validate_report`. If they are there,
+**prefer them over writing `visual.json` by hand** - they build the same JSON this skill documents,
+but the roles, projections and literal encodings come from code rather than from you, which removes
+the whole class of silently-broken visuals.
+
+The mapping onto the workflow below:
+
+| Step | MCP tool |
+| --- | --- |
+| 1 - discover the model | `inspect_semantic_model` |
+| 3 - pick a blueprint | `list_blueprints` |
+| 4 - scaffold | `create_report`, `add_page` |
+| 5 - emit visuals | `apply_blueprint` for a whole page, `add_visual` for one |
+| 6 - preview and validate | `preview_report`, `validate_report` |
+
+Steps 1, 2, 3 and 6 still apply unchanged - the tools do not choose fields or judge a layout for you.
+Read the reference files for *what* to put where; the server only handles *how* it is written.
+
+Without the server, follow the workflow as written.
+
 ## Prerequisites
 
 - The report must target an existing semantic model (local PBIP folder, Power BI Desktop, or a Fabric

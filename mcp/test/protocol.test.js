@@ -1,0 +1,283 @@
+/**
+ * End-to-end MCP test: spawns the real server over stdio and drives it with a real MCP client, so
+ * the tool schemas, handlers and transport are all exercised the way a host would exercise them.
+ */
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { promises as fs } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const entry = path.join(here, '..', 'dist', 'index.js');
+
+async function withClient(fn) {
+  const transport = new StdioClientTransport({ command: process.execPath, args: [entry] });
+  const client = new Client({ name: 'powerbi-dashboard-tests', version: '1.0.0' });
+  await client.connect(transport);
+  try {
+    return await fn(client);
+  } finally {
+    await client.close();
+  }
+}
+
+function textOf(result) {
+  return (result.content ?? []).map((c) => c.text ?? '').join('\n');
+}
+
+async function fixtureModel() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'pbi-mcp-proto-'));
+  const tables = path.join(root, 'Sales.SemanticModel', 'definition', 'tables');
+  await fs.mkdir(tables, { recursive: true });
+  await fs.writeFile(
+    path.join(tables, 'Sales.tmdl'),
+    ['table Sales', "\tmeasure 'Total Sales' = SUM(Sales[Amount])", '\tcolumn Amount', '\t\tdataType: double', ''].join('\n'),
+  );
+  await fs.writeFile(
+    path.join(tables, 'Date.tmdl'),
+    ['table Date', '\tdataCategory: Time', '\tcolumn Date', '\t\tdataType: dateTime', ''].join('\n'),
+  );
+  await fs.writeFile(
+    path.join(tables, 'Product.tmdl'),
+    ['table Product', '\tcolumn Category', '\t\tdataType: string', ''].join('\n'),
+  );
+  return { root, modelPath: path.join(root, 'Sales.SemanticModel') };
+}
+
+test('server advertises every tool with a schema', async () => {
+  await withClient(async (client) => {
+    const { tools } = await client.listTools();
+    const names = tools.map((t) => t.name).sort();
+
+    assert.deepEqual(names, [
+      'add_page',
+      'add_visual',
+      'apply_blueprint',
+      'create_report',
+      'describe_report',
+      'inspect_semantic_model',
+      'list_blueprints',
+      'list_visual_types',
+      'preview_report',
+      'rebind_report',
+      'remove_visual',
+      'validate_report',
+    ]);
+
+    for (const tool of tools) {
+      assert.ok(tool.description && tool.description.length > 40, `${tool.name} needs a real description`);
+      assert.equal(tool.inputSchema.type, 'object', `${tool.name} has no object input schema`);
+    }
+  });
+});
+
+test('list_blueprints returns slots with concrete positions', async () => {
+  await withClient(async (client) => {
+    const result = await client.callTool({ name: 'list_blueprints', arguments: { name: 'executive-overview' } });
+    const data = JSON.parse(textOf(result));
+
+    assert.equal(data.blueprints.length, 1);
+    const kpi = data.blueprints[0].slots.find((s) => s.slot === 'kpiRow');
+    assert.deepEqual(kpi.position, { x: 24, y: 88, z: 5000, width: 1232, height: 112, tabOrder: 5000 });
+  });
+});
+
+test('an unknown blueprint is reported as an error, not a crash', async () => {
+  await withClient(async (client) => {
+    const result = await client.callTool({ name: 'list_blueprints', arguments: { name: 'nope' } });
+    assert.equal(result.isError, true);
+    assert.match(textOf(result), /Unknown blueprint/);
+  });
+});
+
+test('full flow: inspect, create, apply, preview, validate', async () => {
+  const { root, modelPath } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const inspected = JSON.parse(
+      textOf(await client.callTool({ name: 'inspect_semantic_model', arguments: { modelPath } })),
+    );
+    assert.equal(inspected.dateTable, 'Date');
+    assert.equal(inspected.dateColumn, 'Date');
+    assert.ok(inspected.kpiCandidates.some((k) => k.measure === 'Total Sales'));
+
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'E2E', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+    assert.ok(created.reportPath.endsWith('E2E.Report'));
+
+    const applied = await client.callTool({
+      name: 'apply_blueprint',
+      arguments: {
+        reportPath: created.reportPath,
+        blueprint: 'executive-overview',
+        title: 'End to end',
+        kpiMeasures: [{ table: 'Sales', field: 'Total Sales', kind: 'Measure' }],
+        dateField: { table: 'Date', field: 'Date', kind: 'Column' },
+        primaryCategory: { table: 'Product', field: 'Category', kind: 'Column' },
+      },
+    });
+    const appliedText = textOf(applied);
+    assert.match(appliedText, /Applied 'executive-overview'/);
+    assert.match(appliedText, /trend \(lineChart\)/);
+    assert.match(appliedText, /Category: Product\[Category\]/);
+    // Nothing was supplied for these, so they must be skipped rather than emitted empty.
+    assert.match(appliedText, /composition — no secondaryCategory supplied/);
+
+    const preview = textOf(
+      await client.callTool({ name: 'preview_report', arguments: { reportPath: created.reportPath } }),
+    );
+    assert.match(preview, /0 issue\(s\)/);
+    assert.match(preview, /Wireframe written to/);
+
+    const validated = await client.callTool({
+      name: 'validate_report',
+      arguments: { reportPath: created.reportPath, modelPath },
+    });
+    assert.notEqual(validated.isError, true, textOf(validated));
+    assert.match(textOf(validated), /No issues found/);
+  });
+});
+
+test('validate_report reports an error result when a field is missing', async () => {
+  const { root, modelPath } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Broken', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+
+    await client.callTool({
+      name: 'add_visual',
+      arguments: {
+        reportPath: created.reportPath,
+        visualFolder: 'breakdown',
+        visualType: 'barChart',
+        slot: { blueprint: 'executive-overview', slot: 'breakdown' },
+        bindings: {
+          Category: [{ table: 'Product', field: 'Category', kind: 'Column' }],
+          Y: [{ table: 'Sales', field: 'Nonexistent', kind: 'Measure' }],
+        },
+      },
+    });
+
+    const validated = await client.callTool({
+      name: 'validate_report',
+      arguments: { reportPath: created.reportPath, modelPath },
+    });
+    assert.equal(validated.isError, true);
+    assert.match(textOf(validated), /ref-missing/);
+    assert.match(textOf(validated), /Nonexistent/);
+  });
+});
+
+test('add_visual rejects a role the visual type does not accept', async () => {
+  const { root } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Roles', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+
+    const result = await client.callTool({
+      name: 'add_visual',
+      arguments: {
+        reportPath: created.reportPath,
+        visualFolder: 'wrong',
+        visualType: 'donutChart',
+        position: { x: 24, y: 216, width: 400, height: 232 },
+        bindings: { Rows: [{ table: 'Product', field: 'Category', kind: 'Column' }] },
+      },
+    });
+
+    assert.equal(result.isError, true);
+    assert.match(textOf(result), /does not accept role 'Rows'/);
+  });
+});
+
+test('describe_report reads back what was written', async () => {
+  const { root } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Describe', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+
+    await client.callTool({
+      name: 'apply_blueprint',
+      arguments: {
+        reportPath: created.reportPath,
+        blueprint: 'detail-table',
+        title: 'Rows',
+        kpiMeasures: [{ table: 'Sales', field: 'Total Sales', kind: 'Measure' }],
+        primaryCategory: { table: 'Product', field: 'Category', kind: 'Column' },
+        detailFields: [
+          { table: 'Product', field: 'Category', kind: 'Column' },
+          { table: 'Sales', field: 'Total Sales', kind: 'Measure' },
+        ],
+      },
+    });
+
+    const described = JSON.parse(
+      textOf(await client.callTool({ name: 'describe_report', arguments: { reportPath: created.reportPath } })),
+    );
+
+    assert.equal(described.binding.kind, 'byPath');
+    assert.equal(described.pages.length, 1);
+    const table = described.pages[0].visuals.find((v) => v.folder === 'table');
+    assert.equal(table.visualType, 'tableEx');
+    assert.equal(table.bindings.Values.length, 2);
+  });
+});
+
+test('rebind_report switches to a workspace connection', async () => {
+  const { root } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Rebind', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+
+    await client.callTool({
+      name: 'rebind_report',
+      arguments: { reportPath: created.reportPath, semanticModelId: '3f2b9c10-1a4d-4c8e-9f01-2b3c4d5e6f70' },
+    });
+
+    const described = JSON.parse(
+      textOf(await client.callTool({ name: 'describe_report', arguments: { reportPath: created.reportPath } })),
+    );
+    assert.equal(described.binding.kind, 'byConnection');
+    assert.match(described.binding.value, /semanticmodelid=3f2b9c10/);
+  });
+});
