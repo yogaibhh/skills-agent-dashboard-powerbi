@@ -16,10 +16,18 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test \"test/**/*.test.js\"",
+    "test": "npm run build && node --test test/unit.test.js test/protocol.test.js",
     "start": "node dist/index.js"
   },
-  "keywords": ["mcp", "power-bi", "powerbi", "pbir", "pbip", "dashboard", "fabric"],
+  "keywords": [
+    "mcp",
+    "power-bi",
+    "powerbi",
+    "pbir",
+    "pbip",
+    "dashboard",
+    "fabric"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^3.23.8"
