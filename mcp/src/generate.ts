@@ -26,6 +26,13 @@ export interface FieldAssignment {
    * set it when the category has hundreds of members, where sorting alone still draws every bar.
    */
   topN?: number;
+  /**
+   * Column to split a comparison chart into series. Opt-in, and deliberately so: a series needs
+   * about five distinct values to stay readable, and nothing here can see the data to check. This
+   * used to be filled automatically from the second category, which put 38 countries into one
+   * clustered column chart.
+   */
+  seriesField?: FieldRef;
 }
 
 export interface AppliedSlot {
@@ -124,11 +131,15 @@ function planSlot(slot: Slot, a: FieldAssignment): Plan {
       if (!axis) return { skip: 'no category supplied' };
       if (!measure) return { skip: 'no measure available' };
       const bindings: Bindings = { Category: [axis], Y: [measure] };
-      // Only add a series when there is a second, different category to split by.
-      if (a.secondaryCategory && a.primaryCategory && a.primaryCategory !== axis) {
-        bindings.Series = [a.primaryCategory];
-      }
-      return { bindings, title: `${measure.field} by ${axis.field}` };
+      // Series only on request. Splitting by a column with more than a handful of values turns a
+      // clustered chart into a colour test, and cardinality is not visible from here.
+      if (a.seriesField) bindings.Series = [a.seriesField];
+      return {
+        bindings,
+        title: a.seriesField
+          ? `${measure.field} by ${axis.field}, split by ${a.seriesField.field}`
+          : `${measure.field} by ${axis.field}`,
+      };
     }
 
     case 'composition':

@@ -132,7 +132,7 @@ what "valid" means.
 npm test
 ```
 
-66 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
+67 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
 placement, theme presets, TMDL reading and classification, validation rules and the wireframe renderer. Protocol tests spawn the
 real server over stdio and drive it with a real MCP client, so the tool schemas, handlers and
 transport are exercised the way a host exercises them.

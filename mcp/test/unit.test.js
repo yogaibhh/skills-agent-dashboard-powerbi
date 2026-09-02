@@ -720,6 +720,38 @@ test('scatterChart accepts the roles harvested from a real report', () => {
   assert.deepEqual(Object.keys(visual.visual.query.queryState).sort(), ['Category', 'Size', 'X', 'Y']);
 });
 
+test('a comparison chart gets no series unless one is asked for', async () => {
+  // Regression, worked around by hand three times before being fixed: the rule filled Series from
+  // the second category whenever one existed, which put 38 countries into one clustered column
+  // chart. Nothing here can see cardinality, so the caller has to opt in.
+  const root = await tempDir('series');
+  await writeModel(root);
+  const created = await createReport({ name: 'Series', outputPath: root, modelPath: '../Sales.SemanticModel' });
+
+  const assignment = {
+    title: 'x',
+    kpiMeasures: [M('Sales', 'Total Sales')],
+    dateField: C('Date', 'Date'),
+    primaryCategory: C('Product', 'Category'),
+    secondaryCategory: C('Product', 'ProductName'),
+  };
+
+  const plain = await applyBlueprint(created.reportPath, created.pageFolder, 'comparison', assignment);
+  const noSeries = plain.applied.find((a) => a.slot === 'groupedBars');
+  assert.ok(noSeries, 'the comparison slot should still be filled');
+  assert.equal(noSeries.bindings.Series, undefined, 'Series must not appear unbidden');
+
+  const withSeries = await applyBlueprint(
+    created.reportPath,
+    created.pageFolder,
+    'comparison',
+    { ...assignment, seriesField: C('Product', 'Category') },
+    true,
+  );
+  const seriesed = withSeries.applied.find((a) => a.slot === 'groupedBars');
+  assert.equal(seriesed.bindings.Series[0].field, 'Category');
+});
+
 test('a ranked bar chart is sorted by its measure', async () => {
   const { created } = await buildDashboard('sort', FULL_ASSIGNMENT);
   const file = path.join(created.reportPath, 'definition', 'pages', created.pageFolder, 'visuals', 'breakdown', 'visual.json');

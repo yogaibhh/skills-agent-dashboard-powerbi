@@ -210,7 +210,7 @@ The validator exits 1 on errors (`-FailOnWarning` to fail on warnings too), so i
 ## Tests
 
 ```bash
-cd mcp && npm test          # 66 tests
+cd mcp && npm test          # 67 tests
 ```
 
 ```powershell

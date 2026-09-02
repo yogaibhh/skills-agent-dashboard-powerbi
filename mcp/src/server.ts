@@ -433,6 +433,9 @@ export function createServer(): McpServer {
           .number()
           .optional()
           .describe('Keep only the top N members of the category, ranked by the measure. Use it when a category has hundreds of members - sorting alone still draws every bar.'),
+        seriesField: fieldRef
+          .optional()
+          .describe('Split comparison charts into series by this column. Only pass one with about five distinct values or fewer; more turns a clustered chart into a colour test.'),
 
         overwrite: z.boolean().optional().describe('Replace visuals that already occupy these slots.'),
         fillDuplicateRoles: z
@@ -460,6 +463,7 @@ export function createServer(): McpServer {
             secondaryCategory: args.secondaryCategory,
             detailFields: args.detailFields,
             topN: args.topN,
+            seriesField: args.seriesField,
           },
           args.overwrite ?? false,
           args.fillDuplicateRoles ?? false,
