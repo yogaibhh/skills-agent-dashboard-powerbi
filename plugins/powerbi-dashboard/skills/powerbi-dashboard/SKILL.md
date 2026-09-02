@@ -48,6 +48,7 @@ The mapping onto the workflow below:
 | 4 - scaffold | `create_report`, `add_page` |
 | 5 - emit visuals | `apply_blueprint` for a whole page, `add_visual` for one |
 | 6 - preview and validate | `preview_report`, `validate_report` |
+| any time - fix a flat look | `set_theme`, `list_theme_presets` |
 
 Steps 1, 2, 3 and 6 still apply unchanged - the tools do not choose fields or judge a layout for you.
 Read the reference files for *what* to put where; the server only handles *how* it is written.
@@ -197,6 +198,7 @@ A dashboard is not done until all of these hold:
 - [ ] Visuals in the same row share the same `y` and `height`.
 - [ ] Charts with more than ~8 categories are sorted and Top-N filtered.
 - [ ] Every visual has a meaningful title, or `title.show = false` when the content is self-evident.
+- [ ] The page background differs from the card background - see [theming](references/theming.md).
 - [ ] `preview-pbir.ps1` was rendered and read, and the layout matches the blueprint.
 - [ ] `validate-pbir.ps1` reports zero Errors.
 
@@ -222,6 +224,7 @@ A dashboard is not done until all of these hold:
 - [references/model-discovery.md](references/model-discovery.md) - inventory and classify model fields.
 - [references/layout-blueprints.md](references/layout-blueprints.md) - the grid and four blueprints.
 - [references/visual-catalog.md](references/visual-catalog.md) - complete, bound `visual.json` per type.
+- [references/theming.md](references/theming.md) - why generated reports look flat, and the one file that fixes it.
 - [references/deployment.md](references/deployment.md) - open in Desktop, deploy to Fabric, rebind.
 - [PBIR format docs](https://learn.microsoft.com/power-bi/developer/projects/projects-report?tabs=v2%2Cdesktop#pbir-format)
 

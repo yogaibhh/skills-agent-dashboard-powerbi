@@ -31,6 +31,7 @@ This skill fills that gap. It is the generation layer:
 | Did it come out right? | A PowerShell validator that checks bindings, geometry and field references |
 | What about visual types nobody documented? | A harvester that reads the real schema out of existing reports |
 | How do we stop the model typing JSON at all? | An MCP server whose tools take fields, not JSON |
+| Why does it look flat? | A theme builder - Power BI defaults to white cards on a white page |
 
 The renderer matters more than it sounds. Generating a report is otherwise done blind: the agent
 writes coordinates and hopes. `preview-pbir.ps1` closes that loop in seconds, so layout mistakes get
@@ -187,8 +188,8 @@ and renders an empty box.
 inspect_semantic_model  →  create_report  →  apply_blueprint  →  preview_report  →  validate_report
 ```
 
-Twelve tools, covering discovery, scaffolding, whole-page generation, single visuals, preview,
-validation and rebinding. Against this repository's example model, `apply_blueprint` produces a
+Fourteen tools, covering discovery, scaffolding, whole-page generation, single visuals, theming,
+preview, validation and rebinding. Against this repository's example model, `apply_blueprint` produces a
 seven-visual page that both the TypeScript and the PowerShell validator pass with zero findings.
 
 ```bash
@@ -210,14 +211,14 @@ harvesting. No Pester, no modules, no network - it runs on Windows PowerShell 5.
 the same range the scripts support. `-Filter "validate*"` runs a subset; `-KeepWorkspace` leaves the
 fixtures behind for inspection.
 
-**MCP server** — 37 tests:
+**MCP server** — 47 tests:
 
 ```bash
 cd mcp && npm test
 ```
 
-Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, TMDL reading,
-validation rules and the renderer. Protocol tests spawn the real server over stdio and drive it with a
+Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort placement,
+theme presets, TMDL reading, validation rules and the renderer. Protocol tests spawn the real server over stdio and drive it with a
 real MCP client.
 
 CI runs both suites - PowerShell on 5.1 and 7, Node on 20 and 22 - plus PSScriptAnalyzer and a check
@@ -234,6 +235,7 @@ plugins/powerbi-dashboard/
     │   ├── model-discovery.md           # inventory + classify model fields
     │   ├── layout-blueprints.md         # the grid and four blueprints
     │   ├── visual-catalog.md            # complete bound visual.json per type
+    │   ├── theming.md                   # why reports look flat, and the file that fixes it
     │   └── deployment.md                # Desktop, Fabric, rebinding
     ├── scripts/
     │   ├── new-dashboard.ps1

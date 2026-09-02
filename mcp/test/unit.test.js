@@ -15,6 +15,7 @@ import { readSemanticModel, classify, resolveField } from '../dist/tmdl.js';
 import { applyBlueprint } from '../dist/generate.js';
 import { validateReport } from '../dist/validate.js';
 import { renderPreview } from '../dist/preview.js';
+import { buildTheme, THEME_PRESETS } from '../dist/theme.js';
 
 const M = (table, field) => ({ table, field, kind: 'Measure' });
 const C = (table, field) => ({ table, field, kind: 'Column' });
@@ -183,6 +184,37 @@ test('every verified visual type has at least one role, except decorations', () 
     if (type === 'textbox' || type === 'image') assert.equal(roles.length, 0);
     else assert.ok(roles.length > 0, `${type} has no roles`);
   }
+});
+
+test('every theme preset separates the page from the cards', () => {
+  // The default Power BI look is white cards on a white page, which erases every visual edge.
+  // A preset that does not move one of the two is not doing its job.
+  for (const preset of THEME_PRESETS) {
+    const theme = buildTheme({ preset });
+    const page = theme.visualStyles.page['*'].background[0].color.solid.color;
+    const card = theme.visualStyles['*']['*'].background[0].color.solid.color;
+    if (preset === 'minimal') {
+      // minimal separates by whitespace, so it is allowed to match - but it must drop the shadow.
+      assert.equal(theme.visualStyles['*']['*'].dropShadow[0].show, false);
+    } else {
+      assert.notEqual(page, card, `${preset}: page and card colours are identical`);
+    }
+    assert.equal(theme.dataColors.length, 8);
+    assert.ok(theme.textClasses.callout.fontSize > theme.textClasses.label.fontSize);
+  }
+});
+
+test('an accent leads the palette without duplicating a preset colour', () => {
+  const theme = buildTheme({ accent: '#2C5F9E' });
+  assert.equal(theme.dataColors[0], '#2C5F9E');
+  assert.equal(new Set(theme.dataColors).size, theme.dataColors.length, 'palette has a duplicate');
+});
+
+test('bad theme input is rejected rather than written', () => {
+  assert.throws(() => buildTheme({ accent: 'blue' }), /hex/);
+  assert.throws(() => buildTheme({ dataColors: ['#fff'] }), /hex/);
+  assert.throws(() => buildTheme({ cornerRadius: 99 }), /between 0 and 40/);
+  assert.throws(() => buildTheme({ preset: 'neon' }), /Unknown theme preset/);
 });
 
 // ---------------------------------------------------------------------------------------------

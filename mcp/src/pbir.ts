@@ -7,6 +7,7 @@
 
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
+import { ThemeOptions, buildTheme } from './theme.js';
 
 export const SCHEMA = {
   visual: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.1.0/schema.json',
@@ -191,6 +192,7 @@ export interface CreateReportOptions {
   semanticModelId?: string;
   pageName?: string;
   force?: boolean;
+  theme?: ThemeOptions;
 }
 
 export interface CreateReportResult {
@@ -201,34 +203,6 @@ export interface CreateReportResult {
   logicalId: string;
   binding: string;
 }
-
-const THEME = {
-  name: 'DashboardBuilderTheme',
-  dataColors: ['#2E5EAA', '#E8833A', '#3C9E64', '#B5495B', '#7A5EA8', '#0E7C86', '#C2A83E', '#6E7B8B'],
-  background: '#FFFFFF',
-  foreground: '#252423',
-  tableAccent: '#2E5EAA',
-  good: '#3C9E64',
-  neutral: '#C2A83E',
-  bad: '#B5495B',
-  maximum: '#2E5EAA',
-  center: '#E8E8E8',
-  minimum: '#B5495B',
-  textClasses: {
-    title: { fontFace: 'Segoe UI Semibold', fontSize: 14, color: '#252423' },
-    label: { fontFace: 'Segoe UI', fontSize: 10, color: '#605E5C' },
-    callout: { fontFace: 'Segoe UI Semibold', fontSize: 28, color: '#252423' },
-  },
-  visualStyles: {
-    '*': {
-      '*': {
-        background: [{ show: true, transparency: 0 }],
-        border: [{ show: true, radius: 8, color: { solid: { color: '#E1DFDD' } } }],
-        dropShadow: [{ show: false }],
-      },
-    },
-  },
-};
 
 export async function createReport(options: CreateReportOptions): Promise<CreateReportResult> {
   const { name, outputPath } = options;
@@ -305,7 +279,7 @@ export async function createReport(options: CreateReportOptions): Promise<Create
     },
   });
 
-  await writeJson(path.join(reportPath, 'StaticResources', 'RegisteredResources', 'theme.json'), THEME);
+  await writeTheme(reportPath, options.theme);
 
   await writeJson(path.join(reportPath, 'definition', 'pages', 'pages.json'), {
     $schema: SCHEMA.pages,
@@ -481,4 +455,11 @@ export async function resolvePageFolder(reportPath: string, pageFolder?: string)
     );
   }
   return report.pages[0].folder;
+}
+
+/** Writes (or replaces) the report's custom theme. */
+export async function writeTheme(reportPath: string, theme?: ThemeOptions): Promise<string> {
+  const file = path.join(reportPath, 'StaticResources', 'RegisteredResources', 'theme.json');
+  await writeJson(file, buildTheme(theme ?? {}));
+  return file;
 }

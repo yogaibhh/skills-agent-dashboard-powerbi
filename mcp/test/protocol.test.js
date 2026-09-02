@@ -63,10 +63,12 @@ test('server advertises every tool with a schema', async () => {
       'describe_report',
       'inspect_semantic_model',
       'list_blueprints',
+      'list_theme_presets',
       'list_visual_types',
       'preview_report',
       'rebind_report',
       'remove_visual',
+      'set_theme',
       'validate_report',
     ]);
 
@@ -253,6 +255,59 @@ test('describe_report reads back what was written', async () => {
     const table = described.pages[0].visuals.find((v) => v.folder === 'table');
     assert.equal(table.visualType, 'tableEx');
     assert.equal(table.bindings.Values.length, 2);
+  });
+});
+
+test('set_theme writes a theme the report can actually use', async () => {
+  const { root } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Themed', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+
+    const result = await client.callTool({
+      name: 'set_theme',
+      arguments: { reportPath: created.reportPath, preset: 'dark', accent: '#FF6B35', cornerRadius: 0, shadow: false },
+    });
+    assert.notEqual(result.isError, true, textOf(result));
+
+    const themeFile = path.join(created.reportPath, 'StaticResources', 'RegisteredResources', 'theme.json');
+    const theme = JSON.parse(await fs.readFile(themeFile, 'utf8'));
+
+    // The accent leads the palette rather than being appended to it.
+    assert.equal(theme.dataColors[0], '#FF6B35');
+    assert.equal(theme.dataColors.length, 8);
+    // A dark preset has to move the page off white or the whole point is lost.
+    assert.notEqual(theme.visualStyles.page['*'].background[0].color.solid.color, '#FFFFFF');
+    assert.equal(theme.visualStyles['*']['*'].border[0].radius, 0);
+    assert.equal(theme.visualStyles['*']['*'].dropShadow[0].show, false);
+  });
+});
+
+test('set_theme rejects a colour that is not hex', async () => {
+  const { root } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'BadTheme', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+    const result = await client.callTool({
+      name: 'set_theme',
+      arguments: { reportPath: created.reportPath, accent: 'red' },
+    });
+    assert.equal(result.isError, true);
+    assert.match(textOf(result), /hex/);
   });
 });
 

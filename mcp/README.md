@@ -66,6 +66,8 @@ needs. It touches only the folders you point it at, and reaches no network.
 | `describe_report` | Read back structure: binding, pages, visuals, bindings |
 | `preview_report` | Render an HTML wireframe and summarise the layout |
 | `validate_report` | Check structure, geometry, bindings and field references |
+| `set_theme` | Page background, card colour, radius, shadow, palette, fonts |
+| `list_theme_presets` | The available looks and the options `set_theme` takes |
 | `rebind_report` | Point the report at a different model |
 
 ## A typical session
@@ -85,9 +87,15 @@ Run against the repository's example model, that produces a seven-visual page wi
 **Skipping beats emitting empty.** `apply_blueprint` drops any slot the field assignment cannot fill
 and tells you why. A missing visual is a gap; an unbound one is a blank box the user has to diagnose.
 
-**Unverified visual types are refused, not guessed.** `gauge`, `kpi`, `scatterChart`, `treemap` and
-friends have role names that shift between Power BI versions. The server will not invent them - use
+**Unverified visual types are refused, not guessed.** `gauge`, `kpi`, `treemap` and friends have
+role names that shift between Power BI versions. The server will not invent them - use
 `harvest-visual-schema.ps1` on a real report, then pass the harvested roles to `add_visual`.
+
+**Theming is a first-class tool, not an afterthought.** Power BI defaults to white cards on a white
+page, so a correctly generated report still looks unfinished. `set_theme` takes a preset plus a few
+choices and writes the whole theme. It targets theme JSON rather than per-visual formatting because
+theme JSON is documented and fails benignly - Desktop ignores a property it does not recognise,
+where a wrong per-visual property can break the visual outright.
 
 **No BOM.** Power BI's own PBIR files are UTF-8 without a byte-order mark, and so is everything
 written here. The test suite asserts it.
@@ -103,13 +111,14 @@ what "valid" means.
 npm test
 ```
 
-37 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, TMDL
-reading and classification, validation rules and the wireframe renderer. Protocol tests spawn the
+47 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
+placement, theme presets, TMDL reading and classification, validation rules and the wireframe renderer. Protocol tests spawn the
 real server over stdio and drive it with a real MCP client, so the tool schemas, handlers and
 transport are exercised the way a host exercises them.
 
 ## Not yet done
 
 - Not published to npm, so there is no `npx` install path yet.
-- Bookmarks, buttons and drill-through are not modelled.
+- Bookmarks, buttons and drill-through *pages* are not modelled. Drill *hierarchies* are - pass
+  several columns to one `Category` role.
 - `filterConfig` (Top-N) is not built here - harvest it and pass it through.

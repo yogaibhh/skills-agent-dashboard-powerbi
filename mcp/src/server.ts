@@ -11,7 +11,8 @@ import { z } from 'zod';
 import * as path from 'node:path';
 
 import { BLUEPRINTS, getBlueprint, getSlot, gridWidth, gridX, CANVAS, BANDS } from './blueprints.js';
-import { FieldRef, addPage, createReport, readReport, resolvePageFolder } from './pbir.js';
+import { FieldRef, addPage, createReport, readReport, resolvePageFolder, writeTheme } from './pbir.js';
+import { THEME_PRESETS, ThemePreset } from './theme.js';
 import { applyBlueprint } from './generate.js';
 import { classify, readSemanticModel } from './tmdl.js';
 import { formatFindings, validateReport } from './validate.js';
@@ -25,6 +26,24 @@ const fieldRef = z.object({
   field: z.string().describe('Measure or column name, exactly as it appears in the model (case-sensitive).'),
   kind: z.enum(['Measure', 'Column']),
 });
+
+const themeOptions = {
+  preset: z
+    .enum(['light', 'dark', 'minimal'])
+    .optional()
+    .describe(
+      'light: white cards on a soft grey canvas (default, and what most dashboards want). ' +
+      'dark: light text on near-black. minimal: no fills or shadows, separation by whitespace only.',
+    ),
+  accent: z.string().optional().describe('Primary colour as 6-digit hex, e.g. "#2C5F9E". Leads the palette and becomes the table accent.'),
+  dataColors: z.array(z.string()).optional().describe('Full categorical palette as hex strings, in series order. Overrides the preset.'),
+  pageBackground: z.string().optional().describe('Canvas colour behind the visuals. Keep it distinct from the card colour or the visuals lose their edges.'),
+  visualBackground: z.string().optional().describe('Card colour.'),
+  cornerRadius: z.number().optional().describe('Corner radius on every visual, 0 to 40. 0 for square corners.'),
+  shadow: z.boolean().optional().describe('Soft shadow under each visual.'),
+  fontFamily: z.string().optional().describe('Base font, e.g. "Segoe UI".'),
+  name: z.string().optional().describe('Theme name shown in Power BI.'),
+};
 
 const position = z.object({
   x: z.number(),
@@ -180,11 +199,12 @@ export function createServer(): McpServer {
         semanticModelId: z.string().optional().describe('GUID of a semantic model in a Fabric workspace.'),
         pageName: z.string().optional().describe('Display name of the first page. Defaults to "Overview".'),
         force: z.boolean().optional().describe('Overwrite an existing report folder.'),
+        theme: z.object(themeOptions).optional().describe('Look and feel. Omit for the default light theme.'),
       },
     },
     async (args) => {
       try {
-        const result = await createReport(args);
+        const result = await createReport(args as any);
         return json({
           ...result,
           next: 'Call apply_blueprint to fill the page, or add_visual for one visual at a time.',
@@ -217,6 +237,61 @@ export function createServer(): McpServer {
         return fail(err.message);
       }
     },
+  );
+
+  server.registerTool(
+    'set_theme',
+    {
+      title: 'Set the report theme',
+      description:
+        'Write or replace the report theme: page background, card colour, corner radius, shadow, ' +
+        'palette and fonts. Reach for this when a report looks flat - Power BI defaults to white ' +
+        'cards on a white page, so nothing has an edge. A tinted canvas behind white cards is what ' +
+        'makes visuals read as panels. Theme JSON is applied by Desktop and fails benignly, so it is ' +
+        'far safer to adjust than per-visual formatting.',
+      inputSchema: {
+        reportPath: z.string(),
+        ...themeOptions,
+      },
+    },
+    async ({ reportPath, ...theme }) => {
+      try {
+        const file = await writeTheme(reportPath, theme as any);
+        const preset = (theme.preset ?? 'light') as ThemePreset;
+        return text(
+          [
+            `Theme written to ${file}`,
+            `preset: ${preset}${theme.accent ? `, accent: ${theme.accent}` : ''}`,
+            '',
+            'Reopen the report in Power BI Desktop to see it. A theme change needs no data refresh.',
+          ].join('\n'),
+        );
+      } catch (err: any) {
+        return fail(err.message);
+      }
+    },
+  );
+
+  server.registerTool(
+    'list_theme_presets',
+    {
+      title: 'List theme presets',
+      description:
+        'Return the available theme presets and the options set_theme accepts, so a look can be ' +
+        'chosen without guessing at Power BI theme JSON.',
+      inputSchema: {},
+    },
+    async () =>
+      json({
+        presets: THEME_PRESETS,
+        notes: [
+          'light is the default: white cards on #F5F6FA, 8px radius, soft shadow.',
+          'dark uses light text on near-black with a brighter palette.',
+          'minimal removes fills and shadows; separation comes from whitespace.',
+          'accent leads the palette; dataColors replaces it outright.',
+          'Every colour is a 6-digit hex string.',
+        ],
+      }),
   );
 
   server.registerTool(
