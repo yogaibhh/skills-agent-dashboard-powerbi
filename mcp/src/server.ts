@@ -28,12 +28,15 @@ const fieldRef = z.object({
 });
 
 const themeOptions = {
+  // Derived from THEME_PRESETS so a new preset is offered by the tool the moment it is defined.
   preset: z
-    .enum(['light', 'dark', 'minimal'])
+    .enum(THEME_PRESETS as [ThemePreset, ...ThemePreset[]])
     .optional()
     .describe(
-      'light: white cards on a soft grey canvas (default, and what most dashboards want). ' +
-      'dark: light text on near-black. minimal: no fills or shadows, separation by whitespace only.',
+      'light: white cards on a soft grey canvas (the default). dark: light text on near-black. ' +
+      'minimal: no fills or shadows. corporate: deep navy, square corners. warm: cream page, earthy ' +
+      'palette. contrast: heavy borders for projectors and low-vision readers. editorial: quiet and ' +
+      'typographic.',
     ),
   accent: z.string().optional().describe('Primary colour as 6-digit hex, e.g. "#2C5F9E". Leads the palette and becomes the table accent.'),
   dataColors: z.array(z.string()).optional().describe('Full categorical palette as hex strings, in series order. Overrides the preset.'),
@@ -304,7 +307,8 @@ export function createServer(): McpServer {
         'rather than emitted empty. This is the fastest path from a semantic model to a finished page.',
       inputSchema: {
         reportPath: z.string(),
-        blueprint: z.enum(['executive-overview', 'trend-analysis', 'comparison', 'detail-table']),
+        // Derived from BLUEPRINTS so a new layout is reachable the moment it is defined.
+        blueprint: z.enum(Object.keys(BLUEPRINTS) as [string, ...string[]]),
         title: z.string().describe('Dashboard title, shown in the header textbox.'),
         kpiMeasures: z.array(fieldRef).max(4).describe('Up to four headline measures for the KPI row.'),
         pageFolder: z.string().optional().describe('Target page. Defaults to the only page when there is just one.'),

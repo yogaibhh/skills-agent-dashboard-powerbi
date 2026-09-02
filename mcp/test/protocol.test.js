@@ -290,6 +290,64 @@ test('set_theme writes a theme the report can actually use', async () => {
   });
 });
 
+test('every theme preset and blueprint is reachable through the tools', async () => {
+  // Regression, hit twice for real: the tool schemas hardcoded 3 presets and 4 blueprints while the
+  // code defined 7 of each, so the rest were unreachable through MCP with no hint until a caller
+  // happened to name one. Both enums are now derived, and this pins them together.
+  await withClient(async (client) => {
+    const { tools } = await client.listTools();
+
+    const listedPresets = JSON.parse(
+      textOf(await client.callTool({ name: 'list_theme_presets', arguments: {} })),
+    ).presets;
+    const acceptedPresets = tools.find((x) => x.name === 'set_theme').inputSchema.properties.preset.enum;
+    assert.deepEqual([...acceptedPresets].sort(), [...listedPresets].sort());
+    assert.ok(listedPresets.length >= 7, `expected at least 7 presets, got ${listedPresets.length}`);
+
+    const listedBlueprints = JSON.parse(
+      textOf(await client.callTool({ name: 'list_blueprints', arguments: {} })),
+    ).blueprints.map((b) => b.name);
+    const acceptedBlueprints = tools.find((x) => x.name === 'apply_blueprint').inputSchema.properties.blueprint.enum;
+    assert.deepEqual([...acceptedBlueprints].sort(), [...listedBlueprints].sort());
+    assert.ok(listedBlueprints.length >= 7, `expected at least 7 blueprints, got ${listedBlueprints.length}`);
+  });
+});
+
+test('each new blueprint produces a page that validates', async () => {
+  const { root, modelPath } = await fixtureModel();
+
+  await withClient(async (client) => {
+    for (const blueprint of ['hero-metric', 'sidebar-detail', 'three-column']) {
+      const created = JSON.parse(
+        textOf(
+          await client.callTool({
+            name: 'create_report',
+            arguments: { name: `BP ${blueprint}`, outputPath: root, modelPath: '../Sales.SemanticModel' },
+          }),
+        ),
+      );
+      const applied = await client.callTool({
+        name: 'apply_blueprint',
+        arguments: {
+          reportPath: created.reportPath,
+          blueprint,
+          title: blueprint,
+          kpiMeasures: [{ table: 'Sales', field: 'Total Sales', kind: 'Measure' }],
+          dateField: { table: 'Date', field: 'Date', kind: 'Column' },
+          primaryCategory: { table: 'Product', field: 'Category', kind: 'Column' },
+        },
+      });
+      assert.notEqual(applied.isError, true, textOf(applied));
+
+      const validated = await client.callTool({
+        name: 'validate_report',
+        arguments: { reportPath: created.reportPath, modelPath },
+      });
+      assert.notEqual(validated.isError, true, `${blueprint}: ${textOf(validated)}`);
+    }
+  });
+});
+
 test('set_theme rejects a colour that is not hex', async () => {
   const { root } = await fixtureModel();
 
