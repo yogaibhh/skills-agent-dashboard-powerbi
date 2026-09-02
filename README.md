@@ -210,7 +210,7 @@ The validator exits 1 on errors (`-FailOnWarning` to fail on warnings too), so i
 ## Tests
 
 ```bash
-cd mcp && npm test          # 61 tests
+cd mcp && npm test          # 66 tests
 ```
 
 ```powershell
@@ -218,7 +218,7 @@ cd mcp && npm test          # 61 tests
 ```
 
 The Node suite covers the grid, blueprint geometry, projection shapes, literal encoding, sort
-placement, theme presets, page canvas painting, TMDL reading and ranking, layout harvesting and
+placement, Top-N filters, theme presets, page canvas painting, TMDL reading and ranking, layout harvesting and
 rescaling, validation rules and the renderer. Protocol tests spawn the real server over stdio and
 drive it with a real MCP client, so tool schemas, handlers and transport are exercised the way a host
 exercises them.

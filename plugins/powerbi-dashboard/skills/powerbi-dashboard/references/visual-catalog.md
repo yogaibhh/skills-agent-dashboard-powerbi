@@ -592,26 +592,76 @@ Prefer `ThemeDataColor` over hex where you can - it keeps the report consistent 
 
 ## Top-N filtering
 
-Visual-level filters live in a `filterConfig` object on the visual. The exact filter body varies by
-Power BI version, so **do not hand-write it** - author one Top-N filter in Desktop, save as PBIP, and
-run `scripts/harvest-visual-schema.ps1` over it. The harvester has a dedicated Filters section that
-emits one complete, copyable example per filter type (`TopN`, `Categorical`, `Advanced`, ...). The
-structure is:
+The honest fix for a category with hundreds of members. Sorting alone does not help: a bar chart of
+3,768 products draws 3,768 bars, sorted.
+
+`filterConfig` sits at the **root** of `visual.json`, beside `name` and `position` - **not** inside
+`visual`. All eleven filters harvested from real reports were at the root; putting it a level deeper
+is the `sortDefinition` mistake repeated.
+
+The filter is a subquery: rank the category by a measure, take the top N, then constrain the visual
+to the members that came back.
 
 ```json
 "filterConfig": {
   "filters": [
     {
-      "name": "[unique filter name]",
+      "name": "[20-char unique token]",
       "field": { "Column": { "Expression": { "SourceRef": { "Entity": "[Dim]" } }, "Property": "[Col]" } },
       "type": "TopN",
-      "filter": { "...copied from Desktop..." },
-      "howCreated": "Auto"
+      "filter": {
+        "Version": 2,
+        "From": [
+          {
+            "Name": "subquery",
+            "Type": 2,
+            "Expression": { "Subquery": { "Query": {
+              "Version": 2,
+              "From": [
+                { "Name": "c", "Entity": "[Dim]",  "Type": 0 },
+                { "Name": "m", "Entity": "[Fact]", "Type": 0 }
+              ],
+              "Select": [
+                { "Column": { "Expression": { "SourceRef": { "Source": "c" } }, "Property": "[Col]" }, "Name": "field" }
+              ],
+              "OrderBy": [
+                { "Direction": 2,
+                  "Expression": { "Measure": { "Expression": { "SourceRef": { "Source": "m" } }, "Property": "[Measure]" } } }
+              ],
+              "Top": 10
+            } } }
+          },
+          { "Name": "c", "Entity": "[Dim]", "Type": 0 }
+        ],
+        "Where": [
+          { "Condition": { "In": {
+            "Expressions": [ { "Column": { "Expression": { "SourceRef": { "Source": "c" } }, "Property": "[Col]" } } ],
+            "Table": { "SourceRef": { "Source": "subquery" } }
+          } } }
+        ]
+      }
     }
   ]
 }
 ```
 
-If you cannot round-trip, the safe fallback is to sort descending and leave the chart scrollable, or
-to bind a category that is already small enough. A wrong `filterConfig` breaks the whole visual; a
-missing one only makes it busier.
+Details that are not guessable:
+
+- `Direction` is numeric: **2 is descending**, 1 ascending. Every harvested TopN used 2.
+- Two aliases when the category and the measure live on different tables (`c` and `m`); one alias
+  covers both when they share a table.
+- `Type: 2` marks the subquery entry; `Type: 0` marks a plain table.
+- The outer `From` repeats the category table so the `Where` clause can reference it.
+
+The MCP server builds all of this from three values:
+
+```
+add_visual       topN: { count: 10 }          ranks by the measure the visual already plots
+apply_blueprint  topN: 10                     applies it to ranked category charts
+```
+
+## Alternatives when Top-N does not fit
+
+A drill hierarchy often reads better and needs no filter at all: put a small column above the big one
+(`Price Band` then `ProductName`) and the chart opens with three bars. See
+[Drill hierarchies](#drill-hierarchies).

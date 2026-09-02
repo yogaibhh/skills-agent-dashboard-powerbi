@@ -429,6 +429,11 @@ export function createServer(): McpServer {
         primaryCategory: fieldRef.optional().describe('Main category column, for the breakdown chart.'),
         secondaryCategory: fieldRef.optional().describe('Second category, for composition and comparison slots. Keep it under 7 distinct values.'),
         detailFields: z.array(fieldRef).optional().describe('Columns and measures for the detail table, in display order.'),
+        topN: z
+          .number()
+          .optional()
+          .describe('Keep only the top N members of the category, ranked by the measure. Use it when a category has hundreds of members - sorting alone still draws every bar.'),
+
         overwrite: z.boolean().optional().describe('Replace visuals that already occupy these slots.'),
         fillDuplicateRoles: z
           .boolean()
@@ -454,6 +459,7 @@ export function createServer(): McpServer {
             primaryCategory: args.primaryCategory,
             secondaryCategory: args.secondaryCategory,
             detailFields: args.detailFields,
+            topN: args.topN,
           },
           args.overwrite ?? false,
           args.fillDuplicateRoles ?? false,
@@ -519,6 +525,14 @@ export function createServer(): McpServer {
           })
           .optional()
           .describe('Sort the visual by one of its bound fields. Use it on any ranked bar chart.'),
+        topN: z
+          .object({
+            count: z.number().describe('How many members to keep.'),
+            measure: fieldRef.optional().describe('Measure to rank by. Defaults to the sort measure, else the first bound measure.'),
+            direction: z.enum(['Ascending', 'Descending']).optional(),
+          })
+          .optional()
+          .describe('Limit the category to its top N members. Needs a Category binding and a measure.'),
         overwrite: z.boolean().optional(),
       },
     },
@@ -553,6 +567,7 @@ export function createServer(): McpServer {
           text: args.textContent,
           slicerMode: args.slicerMode,
           sortBy: args.sortBy,
+          topN: args.topN,
           overwrite: args.overwrite ?? false,
         });
 

@@ -132,7 +132,7 @@ what "valid" means.
 npm test
 ```
 
-61 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
+66 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
 placement, theme presets, TMDL reading and classification, validation rules and the wireframe renderer. Protocol tests spawn the
 real server over stdio and drive it with a real MCP client, so the tool schemas, handlers and
 transport are exercised the way a host exercises them.
@@ -141,5 +141,5 @@ transport are exercised the way a host exercises them.
 
 - Not published to npm, so there is no `npx` install path yet.
 - Bookmarks, buttons and drill-through *pages* are not modelled. Drill *hierarchies* are - pass
-  several columns to one `Category` role.
-- `filterConfig` (Top-N) is not built here - harvest it and pass it through.
+  several columns to one `Category` role - and so is Top-N filtering.
+

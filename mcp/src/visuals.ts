@@ -9,6 +9,7 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { Bindings, FieldRef, Position, SCHEMA, newPbirName, queryState, writeJson } from './pbir.js';
+import { buildTopNFilter } from './filters.js';
 
 /** Roles each visual type accepts. Only types verified against real PBIR output are listed. */
 export const ROLES: Record<string, string[]> = {
@@ -81,6 +82,11 @@ export interface BuildVisualOptions {
   columnCount?: number;
   /** Merged into visual.objects verbatim, for anything the builder does not cover. */
   objects?: Record<string, unknown>;
+  /**
+   * Keep only the top N members of the visual's category, ranked by a measure. The honest fix for a
+   * category with thousands of members - sorting alone still draws every bar.
+   */
+  topN?: { count: number; measure?: FieldRef; direction?: 'Ascending' | 'Descending' };
 }
 
 export function buildVisual(options: BuildVisualOptions): Record<string, unknown> {
@@ -193,12 +199,41 @@ export function buildVisual(options: BuildVisualOptions): Record<string, unknown
   if (Object.keys(containerObjects).length > 0) visual.visualContainerObjects = containerObjects;
   visual.drillFilterOtherVisuals = true;
 
-  return {
+  const result: Record<string, unknown> = {
     $schema: SCHEMA.visual,
     name: options.name ?? newPbirName(),
     position,
     visual,
   };
+
+  if (options.topN) {
+    // Rank by the explicit measure, else by whatever the visual already plots.
+    const measure =
+      options.topN.measure ??
+      (sortBy && (sortBy.kind ?? 'Measure') === 'Measure'
+        ? { table: sortBy.table, field: sortBy.field, kind: 'Measure' as const }
+        : undefined) ??
+      (bindings.Y ?? bindings.Values ?? bindings.Data ?? []).find((f) => f.kind === 'Measure');
+
+    const category = (bindings.Category ?? bindings.Rows ?? [])[0];
+
+    if (!category) throw new Error('topN needs a Category (or Rows) binding to limit.');
+    if (!measure) throw new Error('topN needs a measure to rank by - bind one, or pass topN.measure.');
+
+    // filterConfig sits at the root of visual.json, beside name and position, not inside visual.
+    result.filterConfig = {
+      filters: [
+        buildTopNFilter({
+          category,
+          measure,
+          top: options.topN.count,
+          direction: options.topN.direction,
+        }),
+      ],
+    };
+  }
+
+  return result;
 }
 
 export interface WriteVisualOptions extends BuildVisualOptions {

@@ -21,6 +21,11 @@ export interface FieldAssignment {
   secondaryCategory?: FieldRef;
   /** Columns and measures for the detail table, in display order. */
   detailFields?: FieldRef[];
+  /**
+   * Keep only the top N members on ranked category charts. Leave it unset for a small category;
+   * set it when the category has hundreds of members, where sorting alone still draws every bar.
+   */
+  topN?: number;
 }
 
 export interface AppliedSlot {
@@ -48,6 +53,7 @@ interface Plan {
   title?: string | null;
   slicerMode?: 'Between' | 'Dropdown' | 'Basic';
   sortBy?: { table: string; field: string; direction: 'Descending' };
+  topN?: { count: number; measure?: FieldRef };
   skip?: string;
 }
 
@@ -106,8 +112,11 @@ function planSlot(slot: Slot, a: FieldAssignment): Plan {
       if (!measure) return { skip: 'no measure available' };
       return {
         bindings: { Category: [a.primaryCategory], Y: [measure] },
-        title: `${measure.field} by ${a.primaryCategory.field}`,
+        title: a.topN
+          ? `Top ${a.topN} ${a.primaryCategory.field} by ${measure.field}`
+          : `${measure.field} by ${a.primaryCategory.field}`,
         sortBy: { table: measure.table, field: measure.field, direction: 'Descending' },
+        topN: a.topN ? { count: a.topN, measure } : undefined,
       };
 
     case 'comparison': {
@@ -212,6 +221,7 @@ export async function applyBlueprint(
       title: plan.title,
       slicerMode: plan.slicerMode,
       sortBy: plan.sortBy,
+      topN: plan.topN,
       overwrite,
     });
 

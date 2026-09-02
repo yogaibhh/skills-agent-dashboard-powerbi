@@ -18,6 +18,7 @@ import { renderPreview } from '../dist/preview.js';
 import { buildTheme, buildPageObjects, resolvePalette, THEME_PRESETS } from '../dist/theme.js';
 import { writeTheme } from '../dist/pbir.js';
 import { saveTemplate, loadTemplates, snapToGrid, harvestLayout } from '../dist/layout.js';
+import { buildTopNFilter } from '../dist/filters.js';
 
 const M = (table, field) => ({ table, field, kind: 'Measure' });
 const C = (table, field) => ({ table, field, kind: 'Column' });
@@ -407,6 +408,86 @@ test('harvesting rescales a 1920x1080 page instead of clamping it', async () => 
   assert.ok(
     harvested.warnings.some((w) => w.includes('rescaled by')),
     'a rescale should be reported, not silent',
+  );
+});
+
+test('a Top-N filter matches the shape harvested from real reports', () => {
+  // Structure taken from eleven TopN filters across four public MIT reports. The filter is a
+  // subquery that ranks the category by the measure, takes the top N, and constrains the visual to
+  // the members it returned - not a property anyone would guess.
+  const filter = buildTopNFilter({
+    category: C('Product', 'Category'),
+    measure: M('Sales', 'Total Sales'),
+    top: 10,
+  });
+
+  assert.equal(filter.type, 'TopN');
+  assert.match(filter.name, /^[0-9a-f]{20}$/);
+  assert.equal(filter.field.Column.Expression.SourceRef.Entity, 'Product');
+
+  const query = filter.filter.From[0].Expression.Subquery.Query;
+  assert.equal(query.Top, 10);
+  assert.equal(query.OrderBy[0].Direction, 2, 'Descending is encoded as 2');
+  assert.equal(query.OrderBy[0].Expression.Measure.Property, 'Total Sales');
+
+  // Two tables, so two aliases, and the measure is read through its own.
+  assert.deepEqual(query.From.map((f) => f.Name), ['c', 'm']);
+  assert.equal(query.OrderBy[0].Expression.Measure.Expression.SourceRef.Source, 'm');
+
+  // The visual is constrained by an In against the subquery.
+  assert.equal(filter.filter.Where[0].Condition.In.Table.SourceRef.Source, 'subquery');
+  assert.equal(filter.filter.From[1].Entity, 'Product');
+});
+
+test('a same-table Top-N collapses to one alias', () => {
+  const filter = buildTopNFilter({
+    category: C('Sales', 'Country'),
+    measure: M('Sales', 'Total Sales'),
+    top: 5,
+  });
+  const query = filter.filter.From[0].Expression.Subquery.Query;
+  assert.deepEqual(query.From.map((f) => f.Name), ['c']);
+  assert.equal(query.OrderBy[0].Expression.Measure.Expression.SourceRef.Source, 'c');
+});
+
+test('Top-N rejects input that would produce a broken filter', () => {
+  const cat = C('Product', 'Category');
+  const meas = M('Sales', 'Total Sales');
+  assert.throws(() => buildTopNFilter({ category: cat, measure: meas, top: 0 }), /positive whole number/);
+  assert.throws(() => buildTopNFilter({ category: cat, measure: meas, top: 2.5 }), /positive whole number/);
+  assert.throws(() => buildTopNFilter({ category: meas, measure: meas, top: 5 }), /pass a Column/);
+  assert.throws(() => buildTopNFilter({ category: cat, measure: cat, top: 5 }), /pass a Measure/);
+});
+
+test('topN lands at the root of visual.json, beside position', () => {
+  // Every harvested example had filterConfig at the root, not inside `visual`. Putting it in the
+  // wrong place is the sortDefinition mistake again.
+  const visual = buildVisual({
+    visualType: 'barChart',
+    position: { x: 24, y: 216, z: 1000, width: 400, height: 232, tabOrder: 1000 },
+    bindings: { Category: [C('Product', 'Category')], Y: [M('Sales', 'Total Sales')] },
+    topN: { count: 10 },
+  });
+
+  assert.ok(visual.filterConfig, 'filterConfig must be at the root');
+  assert.equal(visual.visual.filterConfig, undefined, 'filterConfig must not be inside visual');
+  assert.equal(visual.filterConfig.filters[0].filter.From[0].Expression.Subquery.Query.Top, 10);
+  // The ranking measure is taken from what the visual already plots.
+  assert.equal(
+    visual.filterConfig.filters[0].filter.From[0].Expression.Subquery.Query.OrderBy[0].Expression.Measure.Property,
+    'Total Sales',
+  );
+});
+
+test('topN without something to rank is refused rather than half-written', () => {
+  const pos = { x: 0, y: 0, z: 0, width: 400, height: 232, tabOrder: 0 };
+  assert.throws(
+    () => buildVisual({ visualType: 'barChart', position: pos, bindings: { Y: [M('Sales', 'Total Sales')] }, topN: { count: 5 } }),
+    /needs a Category/,
+  );
+  assert.throws(
+    () => buildVisual({ visualType: 'barChart', position: pos, bindings: { Category: [C('Product', 'Category')] }, topN: { count: 5 } }),
+    /needs a measure/,
   );
 });
 
