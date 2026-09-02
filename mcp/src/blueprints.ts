@@ -18,6 +18,20 @@ export function gridX(column: number): number {
   return 24 + 104 * (column - 1);
 }
 
+/**
+ * Taller bands, for layouts that give a visual the full height of the page rather than splitting it
+ * into two rows. Every value still lands the bottom edge on 696.
+ */
+export const TALL_BANDS = {
+  /** Header, then one 608px-high region: a rail, or a single dominant visual. */
+  full: { y: 88, height: 608 },
+  /** Header, KPI band, then one 480px region. */
+  belowKpi: { y: 216, height: 480 },
+  /** Two 296px rows under the header - taller than rowA/rowB, and only two of them. */
+  halfTop: { y: 88, height: 296 },
+  halfBottom: { y: 400, height: 296 },
+} as const;
+
 export const BANDS = {
   header: { y: 16, height: 56 },
   kpi: { y: 88, height: 112 },
@@ -37,7 +51,9 @@ export type SlotRole =
   | 'comparison'
   | 'composition'
   | 'matrix'
-  | 'detailTable';
+  | 'detailTable'
+  /** One oversized number that the page is built around. */
+  | 'heroMetric';
 
 export interface Slot {
   slot: string;
@@ -230,6 +246,148 @@ export const BLUEPRINTS: Record<string, Blueprint> = {
       },
     ],
   },
+};
+
+// --- structurally different layouts ------------------------------------------------------------
+// The four above all share one shape: header, KPI strip, 2x2 grid. Generating only those makes every
+// report look like the last one. These three break that shape deliberately.
+
+BLUEPRINTS['hero-metric'] = {
+  name: 'hero-metric',
+  description: 'One oversized number beside a large trend, with three supporting charts underneath.',
+  useWhen: 'The report answers a single question and one number is the answer.',
+  slots: [
+    TITLE,
+    DATE_SLICER,
+    {
+      slot: 'hero',
+      role: 'heroMetric',
+      visualType: 'cardVisual',
+      position: pos(24, TALL_BANDS.halfTop.y, gridWidth(4), TALL_BANDS.halfTop.height, 5000, 5000),
+      purpose: 'The headline number, given a quarter of the page so it reads first.',
+    },
+    {
+      slot: 'trend',
+      role: 'trend',
+      visualType: 'lineChart',
+      position: pos(gridX(5), TALL_BANDS.halfTop.y, gridWidth(8), TALL_BANDS.halfTop.height, 4000, 2000),
+      purpose: 'How that number got there.',
+      optional: true,
+    },
+    {
+      slot: 'breakdown',
+      role: 'breakdown',
+      visualType: 'barChart',
+      position: pos(24, TALL_BANDS.halfBottom.y, gridWidth(4), TALL_BANDS.halfBottom.height, 3000, 3000),
+      purpose: 'Which categories drive it.',
+    },
+    {
+      slot: 'comparison',
+      role: 'comparison',
+      visualType: 'columnChart',
+      position: pos(gridX(5), TALL_BANDS.halfBottom.y, gridWidth(4), TALL_BANDS.halfBottom.height, 2000, 2500),
+      purpose: 'A second cut of the same measure.',
+      optional: true,
+    },
+    {
+      slot: 'composition',
+      role: 'composition',
+      visualType: 'donutChart',
+      position: pos(gridX(9), TALL_BANDS.halfBottom.y, gridWidth(4), TALL_BANDS.halfBottom.height, 1000, 1500),
+      purpose: 'Share of total by a small category.',
+      optional: true,
+    },
+  ],
+};
+
+BLUEPRINTS['sidebar-detail'] = {
+  name: 'sidebar-detail',
+  description: 'A narrow rail of KPIs down the left, with two large visuals filling the rest.',
+  useWhen: 'The charts need room and the numbers are context rather than the point.',
+  slots: [
+    TITLE,
+    DATE_SLICER,
+    {
+      slot: 'kpiRail',
+      role: 'kpiRow',
+      visualType: 'cardVisual',
+      position: pos(24, TALL_BANDS.full.y, gridWidth(3), TALL_BANDS.full.height, 5000, 5000),
+      purpose: 'KPIs stacked vertically down the side instead of across the top.',
+    },
+    {
+      slot: 'trend',
+      role: 'trend',
+      visualType: 'lineChart',
+      position: pos(gridX(4), TALL_BANDS.halfTop.y, gridWidth(9), TALL_BANDS.halfTop.height, 4000, 2000),
+      purpose: 'The main time series, given real height.',
+      optional: true,
+    },
+    {
+      slot: 'breakdown',
+      role: 'breakdown',
+      visualType: 'barChart',
+      position: pos(gridX(4), TALL_BANDS.halfBottom.y, gridWidth(9), TALL_BANDS.halfBottom.height, 3000, 3000),
+      purpose: 'A wide ranked breakdown - room for long category labels.',
+    },
+  ],
+};
+
+BLUEPRINTS['three-column'] = {
+  name: 'three-column',
+  description: 'A KPI strip over a three-by-two grid of equal panels.',
+  useWhen: 'Several equally important cuts of the same measure, with no single hero.',
+  slots: [
+    TITLE,
+    DATE_SLICER,
+    KPI_ROW,
+    {
+      slot: 'trend',
+      role: 'trend',
+      visualType: 'lineChart',
+      position: pos(24, BANDS.rowA.y, gridWidth(4), BANDS.rowA.height, 4000, 2000),
+      purpose: 'Over time.',
+      optional: true,
+    },
+    {
+      slot: 'breakdown',
+      role: 'breakdown',
+      visualType: 'barChart',
+      position: pos(gridX(5), BANDS.rowA.y, gridWidth(4), BANDS.rowA.height, 3900, 2100),
+      purpose: 'By the primary category.',
+    },
+    {
+      slot: 'composition',
+      role: 'composition',
+      visualType: 'donutChart',
+      position: pos(gridX(9), BANDS.rowA.y, gridWidth(4), BANDS.rowA.height, 3800, 2200),
+      purpose: 'Share of total.',
+      optional: true,
+    },
+    {
+      slot: 'comparison',
+      role: 'comparison',
+      visualType: 'columnChart',
+      position: pos(24, BANDS.rowB.y, gridWidth(4), BANDS.rowB.height, 3000, 1000),
+      purpose: 'A second category cut.',
+      optional: true,
+    },
+    {
+      slot: 'matrix',
+      role: 'matrix',
+      visualType: 'pivotTable',
+      position: pos(gridX(5), BANDS.rowB.y, gridWidth(4), BANDS.rowB.height, 2000, 1100),
+      purpose: 'Both categories crossed.',
+      optional: true,
+    },
+    {
+      slot: 'detailTable',
+      role: 'detailTable',
+      visualType: 'tableEx',
+      position: pos(gridX(9), BANDS.rowB.y, gridWidth(4), BANDS.rowB.height, 1000, 1200),
+      purpose: 'Row-level detail.',
+      optional: true,
+    },
+  ],
 };
 
 export function getBlueprint(name: string): Blueprint {

@@ -70,6 +70,11 @@ function planSlot(slot: Slot, a: FieldAssignment): Plan {
       if (a.kpiMeasures.length === 0) return { skip: 'no kpiMeasures supplied' };
       return { bindings: { Data: a.kpiMeasures.slice(0, 4) }, title: null };
 
+    case 'heroMetric':
+      if (a.kpiMeasures.length === 0) return { skip: 'no kpiMeasures supplied' };
+      // One number only. A hero slot holding four cards is just a KPI row in a tall box.
+      return { bindings: { Data: [a.kpiMeasures[0]] }, title: null };
+
     case 'trend':
       if (!a.dateField) return { skip: 'no dateField supplied' };
       if (!measure) return { skip: 'no measure available' };

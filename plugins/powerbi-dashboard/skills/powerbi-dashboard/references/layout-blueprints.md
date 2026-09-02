@@ -139,6 +139,62 @@ Bindings: `table` = 4-8 detail columns plus 1-3 measures, in the order a reader 
 
 ---
 
+## Blueprint: `hero-metric`
+
+One number is the answer; everything else explains it. Note the taller bands - two 296px rows under
+the header rather than a KPI strip plus two 232px rows.
+
+| Slot | visualType | x | y | width | height | z |
+| --- | --- | --- | --- | --- | --- | --- |
+| `title` | `textbox` | 24 | 16 | 608 | 56 | 9000 |
+| `dateSlicer` | `slicer` | 960 | 16 | 296 | 56 | 8000 |
+| `hero` | `cardVisual` | 24 | 88 | 400 | 296 | 5000 |
+| `trend` | `lineChart` | 440 | 88 | 816 | 296 | 4000 |
+| `breakdown` | `barChart` | 24 | 400 | 400 | 296 | 3000 |
+| `comparison` | `columnChart` | 440 | 400 | 400 | 296 | 2000 |
+| `composition` | `donutChart` | 856 | 400 | 400 | 296 | 1000 |
+
+The hero slot holds **one** measure. Four cards in a tall box is just a KPI row that got stretched.
+
+---
+
+## Blueprint: `sidebar-detail`
+
+KPIs run down a left rail so the charts get the full height of the page.
+
+| Slot | visualType | x | y | width | height | z |
+| --- | --- | --- | --- | --- | --- | --- |
+| `title` | `textbox` | 24 | 16 | 608 | 56 | 9000 |
+| `dateSlicer` | `slicer` | 960 | 16 | 296 | 56 | 8000 |
+| `kpiRail` | `cardVisual` | 24 | 88 | 296 | 608 | 5000 |
+| `trend` | `lineChart` | 336 | 88 | 920 | 296 | 4000 |
+| `breakdown` | `barChart` | 336 | 400 | 920 | 296 | 3000 |
+
+The 920px breakdown is the widest chart any blueprint gives you - use it when category labels are
+long enough to be truncated elsewhere.
+
+---
+
+## Blueprint: `three-column`
+
+A KPI strip over six equal panels. Use when several cuts matter equally.
+
+| Slot | visualType | x | y | width | height | z |
+| --- | --- | --- | --- | --- | --- | --- |
+| `title` | `textbox` | 24 | 16 | 608 | 56 | 9000 |
+| `dateSlicer` | `slicer` | 960 | 16 | 296 | 56 | 8000 |
+| `kpiRow` | `cardVisual` | 24 | 88 | 1232 | 112 | 5000 |
+| `trend` | `lineChart` | 24 | 216 | 400 | 232 | 4000 |
+| `breakdown` | `barChart` | 440 | 216 | 400 | 232 | 3900 |
+| `composition` | `donutChart` | 856 | 216 | 400 | 232 | 3800 |
+| `comparison` | `columnChart` | 24 | 464 | 400 | 232 | 3000 |
+| `matrix` | `pivotTable` | 440 | 464 | 400 | 232 | 2000 |
+| `detailTable` | `tableEx` | 856 | 464 | 400 | 232 | 1000 |
+
+400px is narrow. Do not put a wide table or a long-labelled bar chart in these panels.
+
+---
+
 ## Building a custom layout
 
 When no blueprint fits, derive one instead of free-handing:

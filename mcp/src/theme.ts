@@ -9,7 +9,7 @@
  * cards - which is what Power BI gives you out of the box - makes every visual edge disappear.
  */
 
-export type ThemePreset = 'light' | 'dark' | 'minimal';
+export type ThemePreset = 'light' | 'dark' | 'minimal' | 'corporate' | 'warm' | 'contrast' | 'editorial';
 
 export interface ThemeOptions {
   preset?: ThemePreset;
@@ -68,6 +68,18 @@ const DATA_COLORS_DARK = [
   '#93A2B3',
 ];
 
+const DATA_COLORS_CORPORATE = [
+  '#12395B', '#1B6E8C', '#3FA0A6', '#7FBF9B', '#C2A15A', '#A4553C', '#6B4E71', '#8A94A6',
+];
+
+const DATA_COLORS_WARM = [
+  '#B5502F', '#D98E45', '#C9A227', '#7A8C4B', '#4E7A6B', '#8A5A44', '#B07C9E', '#8C7B6B',
+];
+
+const DATA_COLORS_CONTRAST = [
+  '#005FCC', '#D65200', '#00785A', '#B10E4A', '#5B2D8E', '#00707A', '#8A6A00', '#3D4653',
+];
+
 const PRESETS: Record<ThemePreset, Palette> = {
   // Cards float on a slightly cool grey. This is the difference between a dashboard that reads as
   // panels and one that reads as a single white sheet.
@@ -119,6 +131,81 @@ const PRESETS: Record<ThemePreset, Palette> = {
     bad: '#C0504D',
     shadow: false,
     radius: 0,
+  },
+
+  // Deep navy on a cool page. Reads as a bank or an ops report rather than a demo.
+  corporate: {
+    page: '#EEF1F6',
+    outspace: '#E1E6EE',
+    card: '#FFFFFF',
+    border: '#D6DCE6',
+    text: '#12233A',
+    textMuted: '#546480',
+    gridline: '#E4E9F0',
+    divider: '#EDF0F5',
+    dataColors: DATA_COLORS_CORPORATE,
+    good: '#2E7D5B',
+    neutral: '#C2A15A',
+    bad: '#A4353C',
+    shadow: false,
+    radius: 4,
+  },
+
+  // Cream page, earthy palette. Softer than the default blue-grey without going pastel.
+  warm: {
+    page: '#FAF6F0',
+    outspace: '#F1EAE0',
+    card: '#FFFFFF',
+    border: '#E8DFD3',
+    text: '#2E2620',
+    textMuted: '#6E6156',
+    gridline: '#EFE7DC',
+    divider: '#F3ECE3',
+    dataColors: DATA_COLORS_WARM,
+    good: '#5C7A4B',
+    neutral: '#C9A227',
+    bad: '#B5502F',
+    shadow: true,
+    radius: 12,
+  },
+
+  // Built for legibility: strong text, saturated series, heavier gridlines. Use on projectors,
+  // in bright rooms, or when the audience includes low-vision readers.
+  contrast: {
+    // Still separated: white cards on a light grey page. High contrast is about legibility, and a
+    // visual whose edge you cannot find is not legible.
+    page: '#EDEEF0',
+    outspace: '#DADDE1',
+    card: '#FFFFFF',
+    border: '#8A9099',
+    text: '#000000',
+    textMuted: '#3D4653',
+    gridline: '#BFC5CC',
+    divider: '#D4D9DE',
+    dataColors: DATA_COLORS_CONTRAST,
+    good: '#00785A',
+    neutral: '#8A6A00',
+    bad: '#B10E4A',
+    shadow: false,
+    radius: 0,
+  },
+
+  // Quiet and typographic: muted series, hairline borders, no fills competing with the data.
+  editorial: {
+    page: '#FCFCFA',
+    outspace: '#F2F2EE',
+    card: '#FFFFFF',
+    border: '#E0E0DA',
+    text: '#22252A',
+    textMuted: '#63696F',
+    gridline: '#ECECE7',
+    divider: '#F1F1EC',
+    dataColors: ['#3A4E63', '#9C6B4E', '#6E8B6E', '#A05B63', '#7A6E93', '#4E7F82', '#A8924E', '#7C838C'],
+    good: '#5C7F5C',
+    neutral: '#A8924E',
+    bad: '#A05B63',
+    shadow: false,
+    radius: 2,
   },
 };
 

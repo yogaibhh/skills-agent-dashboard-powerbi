@@ -72,6 +72,21 @@ instead of a recoloured default:
 Also set `textClasses` for `callout` (the big KPI number), `title`, `header` and `label`. A callout
 that is not clearly larger than a label is the other common reason a dashboard reads as flat.
 
+## Presets
+
+Seven, and they differ in more than hue - radius, shadow, border weight and page tint all move
+together, because those are what actually make two reports look like different products.
+
+| Preset | Look |
+| --- | --- |
+| `light` | Default. White cards on cool grey, 8px radius, soft shadow. |
+| `dark` | Light text on near-black, brighter series. |
+| `minimal` | No fills or shadows; whitespace does the separating. |
+| `corporate` | Deep navy on a cool page, square-ish corners, no shadow. |
+| `warm` | Cream page, earthy palette, generous 12px radius. |
+| `contrast` | Heavier borders and saturated series, for projectors and low-vision readers. |
+| `editorial` | Quiet and typographic: muted series, hairline borders. |
+
 ## Generating one
 
 The MCP server builds all of this from a few choices:

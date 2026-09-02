@@ -94,10 +94,17 @@ Read [references/layout-blueprints.md](references/layout-blueprints.md) and choo
 
 | Blueprint | Use when |
 | --- | --- |
-| `executive-overview` | Default. KPI row + trend + breakdown + detail table. One page. |
-| `trend-analysis` | The question is "how did this change over time". Time series dominates. |
+| `executive-overview` | Default. KPI row + trend + breakdown + detail. |
+| `trend-analysis` | The question is "how did this change over time". |
 | `comparison` | Comparing categories or segments against each other. |
-| `detail-table` | The user wants rows, not charts. Table/matrix dominates. |
+| `detail-table` | The user wants rows, not charts. |
+| `hero-metric` | One number is the answer. Oversized card beside a large trend. |
+| `sidebar-detail` | Charts need room; KPIs go in a left rail instead of a top strip. |
+| `three-column` | Several equally important cuts, no single hero. 3x2 grid. |
+
+The first four share one shape - header, KPI strip, 2x2 grid. Reaching for them every time is what
+makes a set of generated reports look identical. The last three break that shape on purpose: pick by
+the question being asked, not by habit.
 
 Blueprints give exact `x`/`y`/`width`/`height` per slot on the standard 1280x720 canvas. Use them - do
 not free-hand coordinates.
