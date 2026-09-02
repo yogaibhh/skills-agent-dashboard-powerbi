@@ -7,7 +7,7 @@
 
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { ThemeOptions, buildTheme } from './theme.js';
+import { ThemeOptions, buildPageObjects, buildTheme, pageColorsFromTheme, resolvePalette } from './theme.js';
 
 export const SCHEMA = {
   visual: 'https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.1.0/schema.json',
@@ -294,6 +294,7 @@ export async function createReport(options: CreateReportOptions): Promise<Create
     displayOption: 'FitToPage',
     height: 720,
     width: 1280,
+    objects: buildPageObjects(resolvePalette(options.theme ?? {})),
   });
 
   await fs.mkdir(path.join(reportPath, 'definition', 'pages', pageFolder, 'visuals'), { recursive: true });
@@ -339,6 +340,7 @@ export async function addPage(
     displayOption: 'FitToPage',
     height: 720,
     width: 1280,
+    objects: await pageObjectsMatchingReport(reportPath),
   });
   await fs.mkdir(path.join(pagesDir, pageFolder, 'visuals'), { recursive: true });
 
@@ -457,9 +459,53 @@ export async function resolvePageFolder(reportPath: string, pageFolder?: string)
   return report.pages[0].folder;
 }
 
-/** Writes (or replaces) the report's custom theme. */
-export async function writeTheme(reportPath: string, theme?: ThemeOptions): Promise<string> {
-  const file = path.join(reportPath, 'StaticResources', 'RegisteredResources', 'theme.json');
-  await writeJson(file, buildTheme(theme ?? {}));
-  return file;
+const THEME_FILE = path.join('StaticResources', 'RegisteredResources', 'theme.json');
+
+/** The page canvas that matches whatever theme the report currently carries. */
+async function pageObjectsMatchingReport(reportPath: string): Promise<Record<string, unknown>> {
+  try {
+    const theme = await readJson<any>(path.join(reportPath, THEME_FILE));
+    const colors = pageColorsFromTheme(theme);
+    if (colors) {
+      return buildPageObjects({ ...resolvePalette({}), page: colors.page, outspace: colors.outspace });
+    }
+  } catch {
+    // No theme, or one this builder did not write. Fall through to the default canvas.
+  }
+  return buildPageObjects(resolvePalette({}));
+}
+
+/**
+ * Writes (or replaces) the report's theme, and repaints every page's canvas to match.
+ *
+ * The theme alone would be enough while its theme file is applied, but a page left white undoes the
+ * look the moment a different theme is loaded. Painting both keeps the canvas a property of the
+ * report.
+ */
+export async function writeTheme(
+  reportPath: string,
+  theme?: ThemeOptions,
+): Promise<{ themeFile: string; pagesRepainted: number }> {
+  const themeFile = path.join(reportPath, THEME_FILE);
+  await writeJson(themeFile, buildTheme(theme ?? {}));
+
+  const objects = buildPageObjects(resolvePalette(theme ?? {}));
+  const pagesDir = path.join(reportPath, 'definition', 'pages');
+  let pagesRepainted = 0;
+
+  if (await exists(pagesDir)) {
+    for (const entry of await fs.readdir(pagesDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const pageFile = path.join(pagesDir, entry.name, 'page.json');
+      if (!(await exists(pageFile))) continue;
+
+      const page = await readJson<any>(pageFile);
+      // Merge, so an outspacePane width or anything else set on the page survives.
+      page.objects = { ...(page.objects ?? {}), ...objects };
+      await writeJson(pageFile, page);
+      pagesRepainted++;
+    }
+  }
+
+  return { themeFile, pagesRepainted };
 }

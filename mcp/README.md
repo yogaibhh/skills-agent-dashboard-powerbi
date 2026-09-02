@@ -66,7 +66,7 @@ needs. It touches only the folders you point it at, and reaches no network.
 | `describe_report` | Read back structure: binding, pages, visuals, bindings |
 | `preview_report` | Render an HTML wireframe and summarise the layout |
 | `validate_report` | Check structure, geometry, bindings and field references |
-| `set_theme` | Page background, card colour, radius, shadow, palette, fonts |
+| `set_theme` | Page background, card colour, radius, shadow, palette, fonts - repaints every page |
 | `list_theme_presets` | The available looks and the options `set_theme` takes |
 | `rebind_report` | Point the report at a different model |
 
@@ -111,7 +111,7 @@ what "valid" means.
 npm test
 ```
 
-47 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
+53 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
 placement, theme presets, TMDL reading and classification, validation rules and the wireframe renderer. Protocol tests spawn the
 real server over stdio and drive it with a real MCP client, so the tool schemas, handlers and
 transport are exercised the way a host exercises them.

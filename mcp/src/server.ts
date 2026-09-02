@@ -259,12 +259,13 @@ export function createServer(): McpServer {
     },
     async ({ reportPath, ...theme }) => {
       try {
-        const file = await writeTheme(reportPath, theme as any);
+        const { themeFile, pagesRepainted } = await writeTheme(reportPath, theme as any);
         const preset = (theme.preset ?? 'light') as ThemePreset;
         return text(
           [
-            `Theme written to ${file}`,
+            `Theme written to ${themeFile}`,
             `preset: ${preset}${theme.accent ? `, accent: ${theme.accent}` : ''}`,
+            `${pagesRepainted} page canvas(es) repainted to match.`,
             '',
             'Reopen the report in Power BI Desktop to see it. A theme change needs no data refresh.',
           ].join('\n'),

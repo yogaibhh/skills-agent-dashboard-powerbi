@@ -220,7 +220,10 @@ function checkHex(value: string, label: string): string {
 
 const solid = (color: string) => ({ solid: { color } });
 
-export function buildTheme(options: ThemeOptions = {}): Record<string, unknown> {
+export type { Palette };
+
+/** Resolves a preset plus overrides into the concrete palette both the theme and the pages use. */
+export function resolvePalette(options: ThemeOptions = {}): Palette {
   const preset = options.preset ?? 'light';
   const base = PRESETS[preset];
   if (!base) {
@@ -246,6 +249,44 @@ export function buildTheme(options: ThemeOptions = {}): Record<string, unknown> 
     p.radius = Math.round(options.cornerRadius);
   }
   if (typeof options.shadow === 'boolean') p.shadow = options.shadow;
+
+  return p;
+}
+
+/**
+ * The page canvas, written into page.json rather than the theme.
+ *
+ * The theme's `visualStyles.page` covers this, but a report can be opened with a different theme
+ * applied, and a page that then falls back to white undoes the whole look. Painting the page
+ * directly makes the canvas part of the report instead of part of the theme. Shapes verified against
+ * the official page/1.4.0 schema: objects.background and objects.outspace each take an array of
+ * { properties: { color, transparency } }.
+ */
+export function buildPageObjects(palette: Palette): Record<string, unknown> {
+  const fill = (color: string) => ({
+    properties: {
+      color: { solid: { color: { expr: { Literal: { Value: `'${color}'` } } } } },
+      transparency: { expr: { Literal: { Value: '0D' } } },
+    },
+  });
+
+  return {
+    background: [fill(palette.page)],
+    outspace: [fill(palette.outspace)],
+  };
+}
+
+/** Reads the canvas colours back out of a report's theme, so a new page can match it. */
+export function pageColorsFromTheme(theme: any): { page: string; outspace: string } | undefined {
+  const styles = theme?.visualStyles?.page?.['*'];
+  const page = styles?.background?.[0]?.color?.solid?.color;
+  const outspace = styles?.outspace?.[0]?.color?.solid?.color;
+  return typeof page === 'string' && typeof outspace === 'string' ? { page, outspace } : undefined;
+}
+
+export function buildTheme(options: ThemeOptions = {}): Record<string, unknown> {
+  const p = resolvePalette(options);
+  const preset = options.preset ?? 'light';
 
   const font = options.fontFamily ?? 'Segoe UI';
   const fontSemibold = `${font} Semibold`;

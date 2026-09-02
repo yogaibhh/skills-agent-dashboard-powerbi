@@ -9,10 +9,35 @@ file, and it costs nothing at generation time.
 | Layer | File | Risk |
 | --- | --- | --- |
 | Report theme | `StaticResources/RegisteredResources/theme.json` | **Low** - a documented public format; Desktop ignores properties it does not know |
+| Page canvas | `objects` in each `page.json` | **Low** - `background` and `outspace` are in the published page schema |
 | Per-visual formatting | `objects` / `visualContainerObjects` in each `visual.json` | **High** - a wrong property name is dropped silently, a wrong shape can break the visual |
 
 Prefer the theme. It applies to every visual at once, survives regeneration, and fails benignly.
 Reach for per-visual formatting only for something genuinely one-off.
+
+**Set the canvas in both places.** The theme's `visualStyles.page` styles the canvas only while that
+theme file is applied; load a different theme and the page falls back to white, undoing the look.
+Writing it into `page.json` as well makes the canvas a property of the report. `set_theme` does both,
+and repaints every existing page.
+
+```json
+"objects": {
+  "background": [
+    {
+      "properties": {
+        "color": { "solid": { "color": { "expr": { "Literal": { "Value": "'#F5F6FA'" } } } } },
+        "transparency": { "expr": { "Literal": { "Value": "0D" } } }
+      }
+    }
+  ],
+  "outspace": [ { "properties": { "color": { "solid": { "color": { "expr": { "Literal": { "Value": "'#EBECF2'" } } } } } } } ]
+}
+```
+
+Unlike theme JSON, this **is** PBIR, so colours are expression-wrapped and numbers carry their type
+suffix. The shape is from the published `page/1.4.0` schema, which defines `objects.background` and
+`objects.outspace` as arrays of `{ properties: { color, image, transparency } }` - fetch the `$schema`
+URL at the top of any PBIR file when you need to check a property rather than guessing at it.
 
 Note that theme JSON is **not** PBIR: colours are plain strings, not `expr`/`Literal` wrappers.
 

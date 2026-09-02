@@ -15,7 +15,8 @@ import { readSemanticModel, classify, resolveField } from '../dist/tmdl.js';
 import { applyBlueprint } from '../dist/generate.js';
 import { validateReport } from '../dist/validate.js';
 import { renderPreview } from '../dist/preview.js';
-import { buildTheme, THEME_PRESETS } from '../dist/theme.js';
+import { buildTheme, buildPageObjects, resolvePalette, THEME_PRESETS } from '../dist/theme.js';
+import { writeTheme } from '../dist/pbir.js';
 
 const M = (table, field) => ({ table, field, kind: 'Measure' });
 const C = (table, field) => ({ table, field, kind: 'Column' });
@@ -202,6 +203,80 @@ test('every theme preset separates the page from the cards', () => {
     assert.equal(theme.dataColors.length, 8);
     assert.ok(theme.textClasses.callout.fontSize > theme.textClasses.label.fontSize);
   }
+});
+
+function pageFill(pageJson) {
+  return pageJson.objects?.background?.[0]?.properties?.color?.solid?.color?.expr?.Literal?.Value;
+}
+
+test('a scaffolded page paints its own canvas, not just the theme', async () => {
+  // The theme's visualStyles.page covers this only while that theme file is applied. A page left
+  // white loses the whole look the moment someone loads a different theme.
+  const root = await tempDir('canvas');
+  await writeModel(root);
+  const created = await createReport({
+    name: 'Canvas',
+    outputPath: root,
+    modelPath: '../Sales.SemanticModel',
+    theme: { preset: 'corporate' },
+  });
+
+  const page = JSON.parse(
+    await fs.readFile(path.join(created.reportPath, 'definition', 'pages', created.pageFolder, 'page.json'), 'utf8'),
+  );
+  const palette = resolvePalette({ preset: 'corporate' });
+  assert.equal(pageFill(page), `'${palette.page}'`);
+  assert.ok(page.objects.outspace, 'outspace should be painted too');
+});
+
+test('set_theme repaints every page, and a page added later matches', async () => {
+  const root = await tempDir('repaint');
+  await writeModel(root);
+  const created = await createReport({ name: 'Repaint', outputPath: root, modelPath: '../Sales.SemanticModel' });
+  await addPage(created.reportPath, 'second', 'Second');
+
+  const result = await writeTheme(created.reportPath, { preset: 'dark' });
+  assert.equal(result.pagesRepainted, 2, 'both pages should have been repainted');
+
+  const dark = resolvePalette({ preset: 'dark' });
+  for (const folder of [created.pageFolder, 'second']) {
+    const page = JSON.parse(
+      await fs.readFile(path.join(created.reportPath, 'definition', 'pages', folder, 'page.json'), 'utf8'),
+    );
+    assert.equal(pageFill(page), `'${dark.page}'`, `${folder} was not repainted`);
+  }
+
+  // A page created after the theme change should adopt it without being told.
+  await addPage(created.reportPath, 'third', 'Third');
+  const third = JSON.parse(
+    await fs.readFile(path.join(created.reportPath, 'definition', 'pages', 'third', 'page.json'), 'utf8'),
+  );
+  assert.equal(pageFill(third), `'${dark.page}'`, 'a new page should match the report theme');
+});
+
+test('repainting preserves other page objects', async () => {
+  const root = await tempDir('preserve');
+  await writeModel(root);
+  const created = await createReport({ name: 'Preserve', outputPath: root, modelPath: '../Sales.SemanticModel' });
+
+  const pageFile = path.join(created.reportPath, 'definition', 'pages', created.pageFolder, 'page.json');
+  const page = JSON.parse(await fs.readFile(pageFile, 'utf8'));
+  page.objects.outspacePane = [{ properties: { width: { expr: { Literal: { Value: '257L' } } } } }];
+  await fs.writeFile(pageFile, JSON.stringify(page, null, 2), 'utf8');
+
+  await writeTheme(created.reportPath, { preset: 'warm' });
+  const after = JSON.parse(await fs.readFile(pageFile, 'utf8'));
+  assert.ok(after.objects.outspacePane, 'an unrelated page object was dropped by the repaint');
+  assert.equal(pageFill(after), `'${resolvePalette({ preset: 'warm' }).page}'`);
+});
+
+test('page objects use the literal encoding PBIR expects', () => {
+  // Verified against the official page/1.4.0 schema: objects.background is an array of
+  // { properties: { color, transparency } }, and colours are expression-wrapped, not plain strings.
+  const objects = buildPageObjects(resolvePalette({ preset: 'light' }));
+  assert.ok(Array.isArray(objects.background));
+  assert.match(objects.background[0].properties.color.solid.color.expr.Literal.Value, /^'#[0-9A-F]{6}'$/i);
+  assert.equal(objects.background[0].properties.transparency.expr.Literal.Value, '0D');
 });
 
 test('an accent leads the palette without duplicating a preset colour', () => {
