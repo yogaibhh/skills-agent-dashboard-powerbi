@@ -56,7 +56,9 @@ needs. It touches only the folders you point it at, and reaches no network.
 | Tool | What it does |
 | --- | --- |
 | `inspect_semantic_model` | Read TMDL and return tables, measures, columns, plus ranked KPI / date / category candidates |
-| `list_blueprints` | The seven page layouts, with every slot's exact position |
+| `recommend_dashboard` | Rank the layouts a model can fill, with arguments ready for `apply_blueprint` |
+| `harvest_layout` | Turn any existing report into a reusable blueprint |
+| `list_blueprints` | Every layout - built-in and harvested - with each slot's exact position |
 | `list_visual_types` | Visual types and the roles each accepts, plus the ones needing harvest first |
 | `create_report` | Scaffold a PBIP report bound to a model (`byPath` or `byConnection`) |
 | `add_page` | Add a page and register it in `pages.json` |
@@ -91,6 +93,19 @@ and tells you why. A missing visual is a gap; an unbound one is a blank box the 
 role names that shift between Power BI versions. The server will not invent them - use
 `harvest-visual-schema.ps1` on a real report, then pass the harvested roles to `add_visual`.
 
+**The layout library grows by harvesting, not by writing more layouts.** Seven hand-written
+blueprints end up looking related, because one person wrote them in one sitting. `harvest_layout`
+reads any PBIR report and infers what each visual is *for* from its type and bindings, so a report
+you already have becomes a template. Positions snap onto the grid and the result says how far
+anything moved - a 50px drift means the source was never on a grid, which is worth knowing before
+trusting it. Saved templates record only the source folder name, never an absolute path, because a
+template is meant to be shared.
+
+**Recommendation ranks completeness over size.** A three-slot layout the model fills entirely beats a
+nine-slot one with four gaps. What it cannot do is see the data: cardinality is unchecked and field
+picks come from names and format strings, so it returns its reasoning and its gaps rather than one
+confident answer.
+
 **Theming is a first-class tool, not an afterthought.** Power BI defaults to white cards on a white
 page, so a correctly generated report still looks unfinished. `set_theme` takes a preset plus a few
 choices and writes the whole theme. It targets theme JSON rather than per-visual formatting because
@@ -111,7 +126,7 @@ what "valid" means.
 npm test
 ```
 
-53 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
+58 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
 placement, theme presets, TMDL reading and classification, validation rules and the wireframe renderer. Protocol tests spawn the
 real server over stdio and drive it with a real MCP client, so the tool schemas, handlers and
 transport are exercised the way a host exercises them.

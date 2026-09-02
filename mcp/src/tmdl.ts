@@ -139,14 +139,26 @@ export interface ModelInventory {
   dateTable?: string;
   dateColumn?: string;
   kpiCandidates: { table: string; measure: string; reason: string }[];
-  categoryCandidates: { table: string; column: string }[];
+  categoryCandidates: { table: string; column: string; why?: string }[];
   notes: string[];
 }
 
 const DATE_TYPES = new Set(['datetime', 'date']);
 const HEADLINE = /^(total|sum|count|#|avg|average|net|gross)\b|\b(amount|revenue|sales|total|count|qty|quantity|margin|profit)\b/i;
 const INTERNAL_FOLDER = /^(internal|hidden|debug|helper|helpers|base|_)/i;
-const BAD_CATEGORY = /(key|id|guid|code|email|address|description|notes?|comment|url|path)$/i;
+/**
+ * Identifier-shaped names. `No` matters more than it looks: TransactionNo, ProductNo and CustomerNo
+ * are the three highest-cardinality columns in a typical retail export, and without this they rank
+ * as prime categories.
+ */
+const IDENTIFIER = /(key|id|guid|code|no|nbr|num|number|email|address|description|notes?|comment|url|path|uuid|ref)$/i;
+
+/** Words that all but guarantee a groupable column, whatever the data turns out to hold. */
+const GROUPING =
+  /\b(category|categories|type|group|segment|status|state|region|country|province|city|district|band|tier|class|channel|level|priority|gender|method|source|brand|department|division|team|stage|rating|size|colour|color)\b/i;
+
+/** Names that usually carry one value per row - usable in a table, poor on an axis. */
+const LABEL = /(name|title|label|subject|summary)$/i;
 
 /**
  * Ranks what the model offers, so the caller can pick fields without reading every table.
@@ -199,20 +211,36 @@ export function classify(model: SemanticModel): ModelInventory {
   // Strongest signals first, so the caller can take the top few.
   kpiCandidates.sort((a, b) => b.reason.split(',').length - a.reason.split(',').length);
 
-  const categoryCandidates: ModelInventory['categoryCandidates'] = [];
+  // Scored rather than filtered: without data access the best that can be done is rank by how much
+  // the name promises, and say so. A wrong pick here produces a chart of 20,000 bars.
+  const scored: { table: string; column: string; score: number; why: string }[] = [];
   for (const table of visible) {
     if (dateTable && table.name === dateTable.name) continue;
     for (const column of table.columns) {
       if (column.hidden) continue;
       const type = (column.dataType ?? '').toLowerCase();
       if (type && type !== 'string') continue;
-      if (BAD_CATEGORY.test(column.name)) continue;
-      categoryCandidates.push({ table: table.name, column: column.name });
+      if (IDENTIFIER.test(column.name)) continue;
+
+      if (GROUPING.test(column.name)) {
+        scored.push({ table: table.name, column: column.name, score: 3, why: 'name states a grouping' });
+      } else if (LABEL.test(column.name)) {
+        scored.push({ table: table.name, column: column.name, score: 1, why: 'a label; likely one value per row' });
+      } else {
+        scored.push({ table: table.name, column: column.name, score: 2, why: 'plain text column' });
+      }
     }
   }
+  scored.sort((a, b) => b.score - a.score || a.column.localeCompare(b.column));
+  const categoryCandidates = scored.map(({ table, column, why }) => ({ table, column, why }));
 
   if (kpiCandidates.length === 0) notes.push('No visible measures found - the KPI row will have nothing to show.');
   if (categoryCandidates.length === 0) notes.push('No usable category columns found - charts will have no axis.');
+  if (scored.length > 0 && scored[0].score < 3) {
+    notes.push(
+      'No column name states a grouping outright, so the category ranking is weak. Check the top pick against real distinct counts before charting it.',
+    );
+  }
   notes.push('Cardinality is not checked here. Verify a category has roughly 3-30 distinct values before using it.');
 
   return { tables: model.tables, dateTable: dateTable?.name, dateColumn, kpiCandidates, categoryCandidates, notes };

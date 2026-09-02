@@ -53,7 +53,9 @@ export type SlotRole =
   | 'matrix'
   | 'detailTable'
   /** One oversized number that the page is built around. */
-  | 'heroMetric';
+  | 'heroMetric'
+  /** Two measures plotted against each other, one point per category member. */
+  | 'scatter';
 
 export interface Slot {
   slot: string;
@@ -406,3 +408,21 @@ export function getSlot(blueprintName: string, slotName: string): Slot {
   }
   return slot;
 }
+
+/**
+ * Adds a blueprint at runtime - used for harvested templates.
+ *
+ * Templates are allowed to shadow a built-in of the same name, because a team that harvested its own
+ * 'executive-overview' means theirs; the caller is told when that happens.
+ */
+export function registerBlueprint(blueprint: Blueprint): { replaced: boolean } {
+  const replaced = Object.prototype.hasOwnProperty.call(BLUEPRINTS, blueprint.name);
+  BLUEPRINTS[blueprint.name] = blueprint;
+  return { replaced };
+}
+
+export function isBuiltIn(name: string): boolean {
+  return BUILT_IN_NAMES.has(name);
+}
+
+const BUILT_IN_NAMES = new Set(Object.keys(BLUEPRINTS));

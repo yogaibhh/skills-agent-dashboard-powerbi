@@ -130,6 +130,16 @@ function planSlot(slot: Slot, a: FieldAssignment): Plan {
       if (!a.detailFields || a.detailFields.length === 0) return { skip: 'no detailFields supplied' };
       return { bindings: { Values: a.detailFields } };
 
+    case 'scatter': {
+      // Needs two measures on the axes; a scatter of one measure against itself says nothing.
+      if (!a.primaryCategory) return { skip: 'no primaryCategory supplied - a scatter needs one point per member' };
+      const [x, y, size] = a.kpiMeasures;
+      if (!x || !y) return { skip: 'a scatter needs two measures, one per axis' };
+      const bindings: Bindings = { Category: [a.primaryCategory], X: [x], Y: [y] };
+      if (size) bindings.Size = [size];
+      return { bindings, title: `${y.field} against ${x.field} by ${a.primaryCategory.field}` };
+    }
+
     default:
       return { skip: `no rule for slot role '${slot.role}'` };
   }

@@ -17,6 +17,7 @@ import { validateReport } from '../dist/validate.js';
 import { renderPreview } from '../dist/preview.js';
 import { buildTheme, buildPageObjects, resolvePalette, THEME_PRESETS } from '../dist/theme.js';
 import { writeTheme } from '../dist/pbir.js';
+import { saveTemplate, loadTemplates, snapToGrid } from '../dist/layout.js';
 
 const M = (table, field) => ({ table, field, kind: 'Measure' });
 const C = (table, field) => ({ table, field, kind: 'Column' });
@@ -50,7 +51,7 @@ async function writeModel(root) {
   );
   await fs.writeFile(
     path.join(tables, 'Product.tmdl'),
-    ['table Product', '\tcolumn Category', '\t\tdataType: string', '\tcolumn ProductKey', '\t\tdataType: int64', ''].join('\n'),
+    ['table Product', '	column Category', '		dataType: string', '	column ProductName', '		dataType: string', '	column ProductNo', '		dataType: string', '	column ProductKey', '		dataType: int64', ''].join('\n'),
   );
   return path.join(root, 'Sales.SemanticModel');
 }
@@ -325,6 +326,54 @@ test('classification finds the date table and filters internal measures out of K
   const categories = inventory.categoryCandidates.map((c) => `${c.table}.${c.column}`);
   assert.ok(categories.includes('Product.Category'));
   assert.ok(!categories.some((c) => c.endsWith('Key')), 'key columns are not categories');
+});
+
+test('a saved template carries no absolute path', async () => {
+  // Templates are meant to be shared and committed. An absolute source path leaks a username and a
+  // directory layout that say nothing about the layout itself.
+  const dir = await tempDir('templates');
+  const blueprint = {
+    name: 'sample',
+    description: 'x',
+    useWhen: 'y',
+    slots: [{ slot: 'a', role: 'title', visualType: 'textbox', position: { x: 24, y: 16, z: 1, width: 400, height: 56, tabOrder: 1 }, purpose: 'p' }],
+  };
+  const file = await saveTemplate(dir, blueprint, 'C:/Users/someone/Documents/Private/My Report.Report');
+  const raw = await fs.readFile(file, 'utf8');
+
+  assert.ok(!raw.includes('someone'), 'a username leaked into a shareable template');
+  assert.ok(!raw.includes('C:/'), 'an absolute path leaked into a shareable template');
+  assert.match(JSON.parse(raw).source, /^My Report\.Report$/);
+
+  const { loaded, errors } = await loadTemplates(dir);
+  assert.equal(errors.length, 0);
+  assert.equal(loaded[0].name, 'sample');
+});
+
+test('snapping keeps a hand-drawn position on the grid and inside the canvas', () => {
+  const { position, drift } = snapToGrid({ x: 426.98, y: 216.32, z: 0, width: 836.01, height: 492.16, tabOrder: 0 });
+  assert.equal((position.x - 24) % 104, 0, 'x is off-grid');
+  assert.equal((position.width + 16) % 104, 0, 'width is off-grid');
+  assert.ok(position.x + position.width <= 1256, 'snapped past the right margin');
+  assert.ok(position.y + position.height <= 696, 'snapped past the bottom margin');
+  assert.ok(drift > 0 && drift < 60, `drift should be reported and modest, got ${drift}`);
+});
+
+test('identifier columns are rejected and grouping names rank first', async () => {
+  // Regression from a real model: TransactionNo, ProductNo and CustomerNo are the three
+  // highest-cardinality columns in a retail export, and a name-only filter ranked them as prime
+  // categories. A chart built on the top pick would have had 20,000 bars.
+  const root = await tempDir('rank');
+  const model = await readSemanticModel(await writeModel(root));
+  const inv = classify(model);
+
+  const names = inv.categoryCandidates.map((c) => c.column);
+  assert.ok(!names.includes('ProductNo'), 'a *No column is an identifier, not a category');
+  assert.ok(!names.includes('ProductKey'), 'a *Key column is an identifier');
+
+  // Category beats ProductName: one states a grouping, the other is a per-row label.
+  assert.equal(inv.categoryCandidates[0].column, 'Category');
+  assert.ok(names.indexOf('Category') < names.indexOf('ProductName'), 'a grouping name must outrank a label');
 });
 
 test('field resolution distinguishes missing from wrong case', async () => {

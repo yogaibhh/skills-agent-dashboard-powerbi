@@ -61,12 +61,14 @@ test('server advertises every tool with a schema', async () => {
       'apply_blueprint',
       'create_report',
       'describe_report',
+      'harvest_layout',
       'inspect_semantic_model',
       'list_blueprints',
       'list_theme_presets',
       'list_visual_types',
       'preview_report',
       'rebind_report',
+      'recommend_dashboard',
       'remove_visual',
       'set_theme',
       'validate_report',
@@ -307,9 +309,20 @@ test('every theme preset and blueprint is reachable through the tools', async ()
     const listedBlueprints = JSON.parse(
       textOf(await client.callTool({ name: 'list_blueprints', arguments: {} })),
     ).blueprints.map((b) => b.name);
-    const acceptedBlueprints = tools.find((x) => x.name === 'apply_blueprint').inputSchema.properties.blueprint.enum;
-    assert.deepEqual([...acceptedBlueprints].sort(), [...listedBlueprints].sort());
     assert.ok(listedBlueprints.length >= 7, `expected at least 7 blueprints, got ${listedBlueprints.length}`);
+
+    // Blueprints must NOT be a frozen enum: harvest_layout registers new ones mid-session, and a
+    // schema fixed at registration time would reject exactly the layout the caller just harvested.
+    const blueprintSchema = tools.find((x) => x.name === 'apply_blueprint').inputSchema.properties.blueprint;
+    assert.equal(blueprintSchema.enum, undefined, 'apply_blueprint must accept runtime-registered layouts');
+
+    // Validation still has to happen, with an error that says what is available.
+    const bad = await client.callTool({
+      name: 'apply_blueprint',
+      arguments: { reportPath: 'nowhere', blueprint: 'no-such-layout', title: 'x', kpiMeasures: [] },
+    });
+    assert.equal(bad.isError, true);
+    assert.match(textOf(bad), /Unknown blueprint/);
   });
 });
 
@@ -366,6 +379,112 @@ test('set_theme rejects a colour that is not hex', async () => {
     });
     assert.equal(result.isError, true);
     assert.match(textOf(result), /hex/);
+  });
+});
+
+test('recommend_dashboard ranks layouts and returns usable arguments', async () => {
+  const { root, modelPath } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const result = JSON.parse(
+      textOf(await client.callTool({ name: 'recommend_dashboard', arguments: { modelPath, title: 'Fixture' } })),
+    );
+
+    assert.equal(result.inventory.dateTable, 'Date');
+    assert.ok(result.recommendations.length >= 1);
+
+    // Ranking must favour completeness: the top pick cannot have more gaps than the one below it.
+    for (let i = 1; i < result.recommendations.length; i++) {
+      assert.ok(result.recommendations[i - 1].score >= result.recommendations[i].score, 'not sorted by score');
+    }
+
+    // The returned arguments have to actually work.
+    const top = result.recommendations[0];
+    const created = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Recommended', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+    const applied = await client.callTool({
+      name: 'apply_blueprint',
+      arguments: { reportPath: created.reportPath, ...top.applyArguments },
+    });
+    assert.notEqual(applied.isError, true, textOf(applied));
+
+    const validated = await client.callTool({
+      name: 'validate_report',
+      arguments: { reportPath: created.reportPath, modelPath },
+    });
+    assert.notEqual(validated.isError, true, textOf(validated));
+  });
+});
+
+test('harvest_layout turns a generated report back into a usable blueprint', async () => {
+  const { root, modelPath } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const source = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Source', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+    await client.callTool({
+      name: 'apply_blueprint',
+      arguments: {
+        reportPath: source.reportPath,
+        blueprint: 'executive-overview',
+        title: 'Source',
+        kpiMeasures: [{ table: 'Sales', field: 'Total Sales', kind: 'Measure' }],
+        dateField: { table: 'Date', field: 'Date', kind: 'Column' },
+        primaryCategory: { table: 'Product', field: 'Category', kind: 'Column' },
+      },
+    });
+
+    const harvested = JSON.parse(
+      textOf(await client.callTool({ name: 'harvest_layout', arguments: { reportPath: source.reportPath } })),
+    ).harvested;
+
+    assert.equal(harvested.length, 1);
+    const page = harvested[0];
+    assert.ok(page.slots.length >= 4, `expected several slots, got ${page.slots.length}`);
+
+    // A round trip through our own generator should need no snapping at all.
+    assert.equal(page.maxDriftPx, 0, 'a generated report is already on the grid');
+
+    // Roles have to come back recognisable, or the harvest is useless.
+    const roles = page.slots.map((s) => s.role);
+    assert.ok(roles.includes('title'), 'title not inferred');
+    assert.ok(roles.includes('kpiRow'), 'KPI row not inferred');
+    assert.ok(roles.includes('trend'), 'trend not inferred');
+    assert.ok(roles.includes('dateSlicer'), 'date slicer not inferred');
+
+    // And the harvested blueprint must be applicable to a fresh report.
+    const target = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Target', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+    const applied = await client.callTool({
+      name: 'apply_blueprint',
+      arguments: {
+        reportPath: target.reportPath,
+        blueprint: page.blueprint,
+        title: 'From a harvested layout',
+        kpiMeasures: [{ table: 'Sales', field: 'Total Sales', kind: 'Measure' }],
+        dateField: { table: 'Date', field: 'Date', kind: 'Column' },
+        primaryCategory: { table: 'Product', field: 'Category', kind: 'Column' },
+      },
+    });
+    assert.notEqual(applied.isError, true, textOf(applied));
   });
 });
 

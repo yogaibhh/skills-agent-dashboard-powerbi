@@ -1,0 +1,101 @@
+{
+  "blueprint": {
+    "name": "sales-explore",
+    "description": "Harvested from 'Explore' in Sales.Report - 6 slots.",
+    "useWhen": "A layout lifted from an existing report. Check the inferred roles before relying on it.",
+    "slots": [
+      {
+        "slot": "title",
+        "role": "title",
+        "visualType": "textbox",
+        "position": {
+          "x": 128,
+          "y": 8,
+          "z": 5000,
+          "width": 504,
+          "height": 64,
+          "tabOrder": 3000
+        },
+        "purpose": "a textbox at the top of a page is the title (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "yearSlicer",
+        "role": "dateSlicer",
+        "visualType": "slicer",
+        "position": {
+          "x": 24,
+          "y": 88,
+          "z": 1000,
+          "width": 192,
+          "height": 184,
+          "tabOrder": 6000
+        },
+        "purpose": "slicer bound to the date table (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "geoDrill",
+        "role": "comparison",
+        "visualType": "columnChart",
+        "position": {
+          "x": 232,
+          "y": 88,
+          "z": 2000,
+          "width": 504,
+          "height": 304,
+          "tabOrder": 1000
+        },
+        "purpose": "a column chart comparing categories (harvested, medium confidence)",
+        "optional": false
+      },
+      {
+        "slot": "productDrill",
+        "role": "breakdown",
+        "visualType": "barChart",
+        "position": {
+          "x": 752,
+          "y": 88,
+          "z": 2100,
+          "width": 504,
+          "height": 304,
+          "tabOrder": 1100
+        },
+        "purpose": "a ranked bar chart by category (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "groupSlicer",
+        "role": "categorySlicer",
+        "visualType": "slicer",
+        "position": {
+          "x": 24,
+          "y": 288,
+          "z": 1100,
+          "width": 192,
+          "height": 408,
+          "tabOrder": 7000
+        },
+        "purpose": "slicer bound to a non-date column (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "timeDrill",
+        "role": "trend",
+        "visualType": "lineChart",
+        "position": {
+          "x": 232,
+          "y": 408,
+          "z": 2200,
+          "width": 920,
+          "height": 288,
+          "tabOrder": 1200
+        },
+        "purpose": "plotted against the date table (harvested, high confidence)",
+        "optional": false
+      }
+    ]
+  },
+  "source": "Sales.Report",
+  "harvestedAt": "2026-09-02T08:41:25.656Z"
+}

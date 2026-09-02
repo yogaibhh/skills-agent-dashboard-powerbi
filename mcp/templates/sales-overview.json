@@ -1,0 +1,86 @@
+{
+  "blueprint": {
+    "name": "sales-overview",
+    "description": "Harvested from 'Overview' in Sales.Report - 5 slots.",
+    "useWhen": "A layout lifted from an existing report. Check the inferred roles before relying on it.",
+    "slots": [
+      {
+        "slot": "title",
+        "role": "title",
+        "visualType": "textbox",
+        "position": {
+          "x": 128,
+          "y": 8,
+          "z": 5000,
+          "width": 608,
+          "height": 64,
+          "tabOrder": 3000
+        },
+        "purpose": "a textbox at the top of a page is the title (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "topCard",
+        "role": "kpiRow",
+        "visualType": "cardVisual",
+        "position": {
+          "x": 24,
+          "y": 72,
+          "z": 9000,
+          "width": 920,
+          "height": 120,
+          "tabOrder": 5000
+        },
+        "purpose": "card holding 4 measures (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "dateSlicer",
+        "role": "dateSlicer",
+        "visualType": "slicer",
+        "position": {
+          "x": 960,
+          "y": 80,
+          "z": 0,
+          "width": 296,
+          "height": 112,
+          "tabOrder": 6000
+        },
+        "purpose": "slicer bound to the date table (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "barChart",
+        "role": "breakdown",
+        "visualType": "barChart",
+        "position": {
+          "x": 24,
+          "y": 216,
+          "z": 4000,
+          "width": 400,
+          "height": 480,
+          "tabOrder": 2000
+        },
+        "purpose": "a ranked bar chart by category (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "timeSeries",
+        "role": "trend",
+        "visualType": "areaChart",
+        "position": {
+          "x": 440,
+          "y": 216,
+          "z": 2000,
+          "width": 816,
+          "height": 480,
+          "tabOrder": 1000
+        },
+        "purpose": "plotted against the date table (harvested, high confidence)",
+        "optional": false
+      }
+    ]
+  },
+  "source": "Sales.Report",
+  "harvestedAt": "2026-09-02T08:41:25.651Z"
+}

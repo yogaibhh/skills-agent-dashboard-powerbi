@@ -9,8 +9,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { BLUEPRINTS, getBlueprint, getSlot, gridWidth, gridX, CANVAS, BANDS } from './blueprints.js';
+import { BLUEPRINTS, getBlueprint, getSlot, gridWidth, gridX, CANVAS, BANDS, isBuiltIn, registerBlueprint } from './blueprints.js';
+import { harvestLayout, loadTemplates, saveTemplate } from './layout.js';
+import { recommend } from './recommend.js';
 import { FieldRef, addPage, createReport, readReport, resolvePageFolder, writeTheme } from './pbir.js';
 import { THEME_PRESETS, ThemePreset } from './theme.js';
 import { applyBlueprint } from './generate.js';
@@ -20,6 +23,14 @@ import { writePreview } from './preview.js';
 import { ROLES, UNVERIFIED_TYPES, removeVisual, writeVisual } from './visuals.js';
 
 export const VERSION = '0.1.0';
+
+/**
+ * Where harvested templates live. Overridable so a team can keep a shared library on a share drive
+ * rather than inside a node_modules-style install.
+ */
+export const TEMPLATES_DIR =
+  process.env.POWERBI_DASHBOARD_TEMPLATES ??
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'templates');
 
 const fieldRef = z.object({
   table: z.string().describe('Table name, exactly as it appears in the semantic model (case-sensitive).'),
@@ -79,6 +90,93 @@ export function createServer(): McpServer {
   // -------------------------------------------------------------------------------------------
   // Discovery
   // -------------------------------------------------------------------------------------------
+
+  server.registerTool(
+    'harvest_layout',
+    {
+      title: 'Harvest a layout from an existing report',
+      description:
+        'Read any PBIR report and turn each page into a reusable blueprint, inferring what every ' +
+        'visual is for from its type and bindings. This is how the layout library grows beyond what ' +
+        'was hand-written: point it at a report you have the rights to and keep its shape. Positions ' +
+        'are snapped onto the 12-column grid by default, and the result reports how far anything ' +
+        'moved. Branding visuals (images, shapes) are dropped. Pass save: true to add it to the ' +
+        'library so apply_blueprint can use it.',
+      inputSchema: {
+        reportPath: z.string().describe('Path to the *.Report folder to learn from.'),
+        save: z.boolean().optional().describe('Write the result into the template library.'),
+        snap: z.boolean().optional().describe('Snap positions onto the grid. Default true; false keeps the layout byte-faithful.'),
+        pageFolder: z.string().optional().describe('Harvest just this page.'),
+        namePrefix: z.string().optional().describe('Prefix for the generated blueprint names. Defaults to the report folder name.'),
+        templatesDir: z.string().optional().describe('Where to save. Defaults to the server template library.'),
+      },
+    },
+    async ({ reportPath, save, snap, pageFolder, namePrefix, templatesDir }) => {
+      try {
+        const harvested = await harvestLayout(reportPath, { snap, pageFolder, namePrefix });
+        if (harvested.length === 0) return fail('No pages found to harvest.');
+
+        const saved: string[] = [];
+        for (const h of harvested) {
+          registerBlueprint(h.blueprint);
+          if (save) saved.push(await saveTemplate(templatesDir ?? TEMPLATES_DIR, h.blueprint, reportPath));
+        }
+
+        return json({
+          harvested: harvested.map((h) => ({
+            blueprint: h.blueprint.name,
+            sourcePage: h.sourcePage,
+            slots: h.blueprint.slots.map((s) => ({
+              slot: s.slot,
+              role: s.role,
+              visualType: s.visualType,
+              position: s.position,
+              optional: s.optional ?? false,
+            })),
+            dropped: h.dropped,
+            maxDriftPx: h.maxDrift,
+            warnings: h.warnings,
+          })),
+          saved,
+          note: save
+            ? 'Saved and registered. Restart the server, or call harvest_layout again, to see them in apply_blueprint.'
+            : 'Registered for this session only. Pass save: true to keep them.',
+        });
+      } catch (err: any) {
+        return fail(err.message);
+      }
+    },
+  );
+
+  server.registerTool(
+    'recommend_dashboard',
+    {
+      title: 'Recommend a dashboard for a model',
+      description:
+        'Inspect a semantic model, work out which layouts it can actually fill, and return ranked ' +
+        'recommendations - each with the gaps it would leave and arguments ready to pass straight to ' +
+        'apply_blueprint. Ranking favours completeness over size: a small layout with no empty slots ' +
+        'beats a large one full of gaps. It cannot see the data, so cardinality is unchecked and the ' +
+        'field picks come from names and format strings. Treat it as a starting point to edit.',
+      inputSchema: {
+        modelPath: z.string().describe('Path to the *.SemanticModel folder.'),
+        title: z.string().optional().describe('Dashboard title to use in the returned arguments.'),
+        limit: z.number().optional().describe('How many layouts to return. Default 3.'),
+      },
+    },
+    async ({ modelPath, title, limit }) => {
+      try {
+        const model = await readSemanticModel(modelPath);
+        const result = recommend(model, title, limit ?? 3);
+        for (const r of result.recommendations) {
+          (r.applyArguments as any).title = result.title;
+        }
+        return json(result);
+      } catch (err: any) {
+        return fail(err.message);
+      }
+    },
+  );
 
   server.registerTool(
     'inspect_semantic_model',
@@ -142,6 +240,7 @@ export function createServer(): McpServer {
           grid: { widthFormula: 'width(n) = 104n - 16', xFormula: 'x(c) = 24 + 104(c - 1)' },
           blueprints: list.map((bp) => ({
             name: bp.name,
+            source: isBuiltIn(bp.name) ? 'built-in' : 'template',
             description: bp.description,
             useWhen: bp.useWhen,
             slots: bp.slots.map((s) => ({
@@ -308,8 +407,12 @@ export function createServer(): McpServer {
         'rather than emitted empty. This is the fastest path from a semantic model to a finished page.',
       inputSchema: {
         reportPath: z.string(),
-        // Derived from BLUEPRINTS so a new layout is reachable the moment it is defined.
-        blueprint: z.enum(Object.keys(BLUEPRINTS) as [string, ...string[]]),
+        // Not an enum: a schema is frozen when the tool is registered, but blueprints can arrive
+        // later from harvest_layout, and rejecting a layout the caller just harvested defeats the
+        // point. Validated at call time by getBlueprint, whose error lists what is available.
+        blueprint: z
+          .string()
+          .describe('Blueprint name. Call list_blueprints for the current set, including harvested templates.'),
         title: z.string().describe('Dashboard title, shown in the header textbox.'),
         kpiMeasures: z.array(fieldRef).max(4).describe('Up to four headline measures for the KPI row.'),
         pageFolder: z.string().optional().describe('Target page. Defaults to the only page when there is just one.'),
@@ -323,6 +426,9 @@ export function createServer(): McpServer {
     },
     async (args) => {
       try {
+        // Check the name before touching the filesystem: 'unknown blueprint' is a more useful error
+        // than 'that path is not a report', and it is the one the caller can act on.
+        getBlueprint(args.blueprint);
         const pageFolder = await resolvePageFolder(args.reportPath, args.pageFolder);
         const result = await applyBlueprint(
           args.reportPath,

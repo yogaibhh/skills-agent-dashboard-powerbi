@@ -1,0 +1,101 @@
+{
+  "blueprint": {
+    "name": "sales-product-performance",
+    "description": "Harvested from 'Product Performance' in Sales.Report - 6 slots.",
+    "useWhen": "A layout lifted from an existing report. Check the inferred roles before relying on it.",
+    "slots": [
+      {
+        "slot": "title",
+        "role": "title",
+        "visualType": "textbox",
+        "position": {
+          "x": 128,
+          "y": 8,
+          "z": 5000,
+          "width": 608,
+          "height": 64,
+          "tabOrder": 3000
+        },
+        "purpose": "a textbox at the top of a page is the title (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "kpiCard",
+        "role": "kpiRow",
+        "visualType": "cardVisual",
+        "position": {
+          "x": 24,
+          "y": 72,
+          "z": 9000,
+          "width": 920,
+          "height": 120,
+          "tabOrder": 5000
+        },
+        "purpose": "card holding 4 measures (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "yearSlicer",
+        "role": "dateSlicer",
+        "visualType": "slicer",
+        "position": {
+          "x": 960,
+          "y": 80,
+          "z": 0,
+          "width": 296,
+          "height": 112,
+          "tabOrder": 6000
+        },
+        "purpose": "slicer bound to the date table (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "packageBar",
+        "role": "breakdown",
+        "visualType": "barChart",
+        "position": {
+          "x": 24,
+          "y": 216,
+          "z": 4000,
+          "width": 400,
+          "height": 480,
+          "tabOrder": 2000
+        },
+        "purpose": "a ranked bar chart by category (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "productTable",
+        "role": "detailTable",
+        "visualType": "tableEx",
+        "position": {
+          "x": 440,
+          "y": 216,
+          "z": 3000,
+          "width": 816,
+          "height": 240,
+          "tabOrder": 1000
+        },
+        "purpose": "a table shows row-level detail (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "marginScatter",
+        "role": "scatter",
+        "visualType": "scatterChart",
+        "position": {
+          "x": 440,
+          "y": 472,
+          "z": 2000,
+          "width": 816,
+          "height": 224,
+          "tabOrder": 1500
+        },
+        "purpose": "scatter plots two measures against each other (harvested, high confidence)",
+        "optional": false
+      }
+    ]
+  },
+  "source": "Sales.Report",
+  "harvestedAt": "2026-09-02T08:41:25.654Z"
+}
