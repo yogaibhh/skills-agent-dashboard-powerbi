@@ -25,7 +25,7 @@ This skill fills that gap. It is the generation layer:
 | Problem | What this skill supplies |
 | --- | --- |
 | Which fields belong on a dashboard? | A discovery + classification procedure, with DAX cardinality checks |
-| Where do visuals go? | Four blueprints with exact `x`/`y`/`width`/`height` on a 12-column grid |
+| Where do visuals go? | Seven blueprints with exact `x`/`y`/`width`/`height` on a 12-column grid |
 | What JSON does a bound visual look like? | A catalog of complete, query-bound `visual.json` per visual type |
 | Does the layout actually look right? | An HTML wireframe renderer - see the page without opening Power BI |
 | Did it come out right? | A PowerShell validator that checks bindings, geometry and field references |
@@ -233,7 +233,7 @@ plugins/powerbi-dashboard/
     ├── SKILL.md                         # the workflow the agent follows
     ├── references/
     │   ├── model-discovery.md           # inventory + classify model fields
-    │   ├── layout-blueprints.md         # the grid and four blueprints
+    │   ├── layout-blueprints.md         # the grid and seven blueprints
     │   ├── visual-catalog.md            # complete bound visual.json per type
     │   ├── theming.md                   # why reports look flat, and the file that fixes it
     │   └── deployment.md                # Desktop, Fabric, rebinding

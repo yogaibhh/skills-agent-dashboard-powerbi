@@ -56,7 +56,7 @@ needs. It touches only the folders you point it at, and reaches no network.
 | Tool | What it does |
 | --- | --- |
 | `inspect_semantic_model` | Read TMDL and return tables, measures, columns, plus ranked KPI / date / category candidates |
-| `list_blueprints` | The four page layouts, with every slot's exact position |
+| `list_blueprints` | The seven page layouts, with every slot's exact position |
 | `list_visual_types` | Visual types and the roles each accepts, plus the ones needing harvest first |
 | `create_report` | Scaffold a PBIP report bound to a model (`byPath` or `byConnection`) |
 | `add_page` | Add a page and register it in `pages.json` |
