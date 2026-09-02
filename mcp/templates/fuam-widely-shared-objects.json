@@ -1,0 +1,76 @@
+{
+  "blueprint": {
+    "name": "fuam-widely-shared-objects",
+    "description": "Harvested from 'Widely Shared Objects' in FUAM_Core_Report.Report - 4 slots.",
+    "useWhen": "A layout lifted from an existing report. Check the inferred roles before relying on it.",
+    "slots": [
+      {
+        "slot": "title",
+        "role": "title",
+        "visualType": "textbox",
+        "position": {
+          "x": 128,
+          "y": 8,
+          "z": 0,
+          "width": 296,
+          "height": 32,
+          "tabOrder": 2000
+        },
+        "purpose": "a textbox at the top of a page is the title (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "kpiRow",
+        "role": "kpiRow",
+        "visualType": "card",
+        "position": {
+          "x": 1168,
+          "y": 8,
+          "z": 3000,
+          "width": 88,
+          "height": 32,
+          "tabOrder": 1000
+        },
+        "purpose": "card holding 1 measures (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "detailTable",
+        "role": "detailTable",
+        "visualType": "tableEx",
+        "position": {
+          "x": 24,
+          "y": 56,
+          "z": 1000,
+          "width": 1232,
+          "height": 312,
+          "tabOrder": 3000
+        },
+        "purpose": "a table shows row-level detail (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "detailTable2",
+        "role": "detailTable",
+        "visualType": "tableEx",
+        "position": {
+          "x": 24,
+          "y": 392,
+          "z": 6000,
+          "width": 1232,
+          "height": 304,
+          "tabOrder": 6000
+        },
+        "purpose": "a table shows row-level detail (harvested, high confidence)",
+        "optional": true
+      }
+    ]
+  },
+  "source": "fuam-widely-shared-objects",
+  "attribution": {
+    "repository": "microsoft/fabric-toolbox",
+    "license": "MIT",
+    "url": "https://github.com/microsoft/fabric-toolbox"
+  },
+  "harvestedAt": "2026-09-02T09:40:03.037Z"
+}

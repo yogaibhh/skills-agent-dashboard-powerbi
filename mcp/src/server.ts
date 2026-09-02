@@ -109,9 +109,17 @@ export function createServer(): McpServer {
         pageFolder: z.string().optional().describe('Harvest just this page.'),
         namePrefix: z.string().optional().describe('Prefix for the generated blueprint names. Defaults to the report folder name.'),
         templatesDir: z.string().optional().describe('Where to save. Defaults to the server template library.'),
+        attribution: z
+          .object({
+            repository: z.string().optional().describe("Where the layout came from, e.g. 'microsoft/fabric-toolbox'."),
+            license: z.string().optional().describe("SPDX id of the source licence, e.g. 'MIT'."),
+            url: z.string().optional(),
+          })
+          .optional()
+          .describe('Recorded in the saved template. Fill it in when harvesting from a report you did not write.'),
       },
     },
-    async ({ reportPath, save, snap, pageFolder, namePrefix, templatesDir }) => {
+    async ({ reportPath, save, snap, pageFolder, namePrefix, templatesDir, attribution }) => {
       try {
         const harvested = await harvestLayout(reportPath, { snap, pageFolder, namePrefix });
         if (harvested.length === 0) return fail('No pages found to harvest.');
@@ -119,7 +127,7 @@ export function createServer(): McpServer {
         const saved: string[] = [];
         for (const h of harvested) {
           registerBlueprint(h.blueprint);
-          if (save) saved.push(await saveTemplate(templatesDir ?? TEMPLATES_DIR, h.blueprint, reportPath));
+          if (save) saved.push(await saveTemplate(templatesDir ?? TEMPLATES_DIR, h.blueprint, reportPath, attribution));
         }
 
         return json({
@@ -422,6 +430,10 @@ export function createServer(): McpServer {
         secondaryCategory: fieldRef.optional().describe('Second category, for composition and comparison slots. Keep it under 7 distinct values.'),
         detailFields: z.array(fieldRef).optional().describe('Columns and measures for the detail table, in display order.'),
         overwrite: z.boolean().optional().describe('Replace visuals that already occupy these slots.'),
+        fillDuplicateRoles: z
+          .boolean()
+          .optional()
+          .describe('Place every slot even when two share a role. Off by default: a harvested layout with three bar charts would otherwise get the same chart three times.'),
       },
     },
     async (args) => {
@@ -444,6 +456,7 @@ export function createServer(): McpServer {
             detailFields: args.detailFields,
           },
           args.overwrite ?? false,
+          args.fillDuplicateRoles ?? false,
         );
 
         const lines = [

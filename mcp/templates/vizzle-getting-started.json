@@ -1,0 +1,121 @@
+{
+  "blueprint": {
+    "name": "vizzle-getting-started",
+    "description": "Harvested from 'Getting Started' in prd_project_deneb_sample_workbook.Report - 7 slots.",
+    "useWhen": "A layout lifted from an existing report. Check the inferred roles before relying on it.",
+    "slots": [
+      {
+        "slot": "title",
+        "role": "title",
+        "visualType": "textbox",
+        "position": {
+          "x": 24,
+          "y": 8,
+          "z": 2000,
+          "width": 1232,
+          "height": 256,
+          "tabOrder": 1000
+        },
+        "purpose": "a textbox at the top of a page is the title (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "categorySlicer",
+        "role": "categorySlicer",
+        "visualType": "slicer",
+        "position": {
+          "x": 648,
+          "y": 16,
+          "z": 10000,
+          "width": 192,
+          "height": 112,
+          "tabOrder": 10000
+        },
+        "purpose": "slicer bound to a non-date column (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "kpiRow",
+        "role": "kpiRow",
+        "visualType": "multiRowCard",
+        "position": {
+          "x": 24,
+          "y": 288,
+          "z": 3000,
+          "width": 504,
+          "height": 40,
+          "tabOrder": 2000
+        },
+        "purpose": "card holding 1 measures (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "breakdown",
+        "role": "breakdown",
+        "visualType": "deneb7E15AEF80B9E4D4F8E12924291ECE89A",
+        "position": {
+          "x": 544,
+          "y": 296,
+          "z": 12000,
+          "width": 712,
+          "height": 184,
+          "tabOrder": 12000
+        },
+        "purpose": "no rule for 'deneb7E15AEF80B9E4D4F8E12924291ECE89A'; treated as a breakdown (harvested, low confidence)",
+        "optional": true
+      },
+      {
+        "slot": "breakdown2",
+        "role": "breakdown",
+        "visualType": "deneb7E15AEF80B9E4D4F8E12924291ECE89A",
+        "position": {
+          "x": 24,
+          "y": 344,
+          "z": 8000,
+          "width": 504,
+          "height": 328,
+          "tabOrder": 7000
+        },
+        "purpose": "no rule for 'deneb7E15AEF80B9E4D4F8E12924291ECE89A'; treated as a breakdown (harvested, low confidence)",
+        "optional": true
+      },
+      {
+        "slot": "detailTable",
+        "role": "detailTable",
+        "visualType": "tableEx",
+        "position": {
+          "x": 128,
+          "y": 448,
+          "z": 0,
+          "width": 192,
+          "height": 40,
+          "tabOrder": 8000
+        },
+        "purpose": "a table shows row-level detail (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "trend",
+        "role": "trend",
+        "visualType": "lineChart",
+        "position": {
+          "x": 544,
+          "y": 480,
+          "z": 1000,
+          "width": 712,
+          "height": 184,
+          "tabOrder": 0
+        },
+        "purpose": "a line chart, though not bound to a date column (harvested, low confidence)",
+        "optional": true
+      }
+    ]
+  },
+  "source": "vizzle-getting-started",
+  "attribution": {
+    "repository": "PBI-DataVizzle/pbi_content",
+    "license": "MIT",
+    "url": "https://github.com/PBI-DataVizzle/pbi_content"
+  },
+  "harvestedAt": "2026-09-02T09:40:03.030Z"
+}

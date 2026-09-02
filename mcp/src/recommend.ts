@@ -118,12 +118,27 @@ function missingFor(role: SlotRole, a: Assignment): string | undefined {
 
 function scoreBlueprint(bp: Blueprint, a: Assignment): Recommendation {
   const gaps: Recommendation['gaps'] = [];
+  const filledRoles = new Set<string>();
   let fillable = 0;
 
   for (const slot of bp.slots) {
+    // Mirror applyBlueprint: an optional slot repeating a role it has already placed is skipped,
+    // because one field assignment would put the same chart there twice. Counting it as fillable
+    // would report a layout as complete that arrives two-thirds empty - which is exactly what a
+    // harvested 12-slot page with seven trend slots did.
+    if (slot.optional && filledRoles.has(slot.role)) {
+      gaps.push({ slot: slot.slot, reason: `a ${slot.role} is already placed; this would be a duplicate` });
+      continue;
+    }
+
     const missing = missingFor(slot.role, a);
-    if (missing) gaps.push({ slot: slot.slot, reason: missing });
-    else fillable++;
+    if (missing) {
+      gaps.push({ slot: slot.slot, reason: missing });
+      continue;
+    }
+
+    filledRoles.add(slot.role);
+    fillable++;
   }
 
   const total = bp.slots.length;

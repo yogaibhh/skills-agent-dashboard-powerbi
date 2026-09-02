@@ -10,14 +10,14 @@ import * as path from 'node:path';
 
 import { createReport, addPage, readReport, projection, queryState, readBindings } from '../dist/pbir.js';
 import { buildVisual, writeVisual, ROLES } from '../dist/visuals.js';
-import { gridWidth, gridX, BLUEPRINTS, getSlot } from '../dist/blueprints.js';
+import { gridWidth, gridX, BLUEPRINTS, getSlot, registerBlueprint } from '../dist/blueprints.js';
 import { readSemanticModel, classify, resolveField } from '../dist/tmdl.js';
 import { applyBlueprint } from '../dist/generate.js';
 import { validateReport } from '../dist/validate.js';
 import { renderPreview } from '../dist/preview.js';
 import { buildTheme, buildPageObjects, resolvePalette, THEME_PRESETS } from '../dist/theme.js';
 import { writeTheme } from '../dist/pbir.js';
-import { saveTemplate, loadTemplates, snapToGrid } from '../dist/layout.js';
+import { saveTemplate, loadTemplates, snapToGrid, harvestLayout } from '../dist/layout.js';
 
 const M = (table, field) => ({ table, field, kind: 'Measure' });
 const C = (table, field) => ({ table, field, kind: 'Column' });
@@ -326,6 +326,88 @@ test('classification finds the date table and filters internal measures out of K
   const categories = inventory.categoryCandidates.map((c) => `${c.table}.${c.column}`);
   assert.ok(categories.includes('Product.Category'));
   assert.ok(!categories.some((c) => c.endsWith('Key')), 'key columns are not categories');
+});
+
+test('a KPI slot uses the role its visual type accepts', async () => {
+  // Regression from a harvested template: planSlot always emitted Data, but only cardVisual takes
+  // Data - card and multiRowCard take Values. A public layout using multiRowCard was rejected by the
+  // very validation meant to protect it.
+  const root = await tempDir('cardrole');
+  const modelPath = await writeModel(root);
+  const created = await createReport({ name: 'CardRole', outputPath: root, modelPath: '../Sales.SemanticModel' });
+
+  registerBlueprint({
+    name: 'multi-row-kpi',
+    description: 'test',
+    useWhen: 'test',
+    slots: [
+      {
+        slot: 'kpiRow',
+        role: 'kpiRow',
+        visualType: 'multiRowCard',
+        position: { x: 24, y: 88, z: 5000, width: 1232, height: 112, tabOrder: 5000 },
+        purpose: 'test',
+      },
+    ],
+  });
+
+  const result = await applyBlueprint(created.reportPath, created.pageFolder, 'multi-row-kpi', {
+    title: 'x',
+    kpiMeasures: [M('Sales', 'Total Sales')],
+  });
+  assert.equal(result.skipped.length, 0, JSON.stringify(result.skipped));
+  assert.deepEqual(Object.keys(result.applied[0].bindings), ['Values']);
+
+  const validation = await validateReport(created.reportPath, modelPath);
+  assert.equal(validation.errors, 0, JSON.stringify(validation.findings));
+});
+
+test('harvesting rescales a 1920x1080 page instead of clamping it', async () => {
+  // Most published reports are authored at 1920x1080, not the 1280x720 the blueprints use. Snapping
+  // those coordinates straight onto a 1280 grid does not adapt the layout, it amputates it: a visual
+  // at x=1500 lands on the right margin. Measured across 73 public pages, this took median snap
+  // drift from 648px to 56px.
+  const root = await tempDir('rescale');
+  await writeModel(root);
+  const created = await createReport({ name: 'Wide', outputPath: root, modelPath: '../Sales.SemanticModel' });
+
+  const pageFile = path.join(created.reportPath, 'definition', 'pages', created.pageFolder, 'page.json');
+  const page = JSON.parse(await fs.readFile(pageFile, 'utf8'));
+  page.width = 1920;
+  page.height = 1080;
+  await fs.writeFile(pageFile, JSON.stringify(page, null, 2), 'utf8');
+
+  // A visual filling the right half of a 1920 canvas.
+  await writeVisual({
+    reportPath: created.reportPath,
+    pageFolder: created.pageFolder,
+    visualFolder: 'wide',
+    visualType: 'barChart',
+    position: { x: 960, y: 540, z: 1000, width: 900, height: 480, tabOrder: 1000 },
+    bindings: { Category: [C('Product', 'Category')], Y: [M('Sales', 'Total Sales')] },
+  });
+  await writeVisual({
+    reportPath: created.reportPath,
+    pageFolder: created.pageFolder,
+    visualFolder: 'header',
+    visualType: 'textbox',
+    position: { x: 40, y: 30, z: 9000, width: 800, height: 80, tabOrder: 9000 },
+    text: 'Wide',
+  });
+
+  const [harvested] = await harvestLayout(created.reportPath);
+  // Slots are named by inferred role, not by the source folder name.
+  const wide = harvested.blueprint.slots.find((s) => s.visualType === 'barChart');
+
+  // 960 of 1920 is the horizontal midpoint; it must land near the midpoint of 1280, not at the margin.
+  assert.ok(wide.position.x > 560 && wide.position.x < 700, `expected the midpoint, got x=${wide.position.x}`);
+  assert.ok(wide.position.x + wide.position.width <= 1256, 'rescaled visual runs past the right margin');
+  assert.ok(wide.position.y + wide.position.height <= 696, 'rescaled visual runs past the bottom margin');
+  assert.ok(harvested.maxDrift <= 60, `drift ${harvested.maxDrift} suggests clamping rather than scaling`);
+  assert.ok(
+    harvested.warnings.some((w) => w.includes('rescaled by')),
+    'a rescale should be reported, not silent',
+  );
 });
 
 test('a saved template carries no absolute path', async () => {

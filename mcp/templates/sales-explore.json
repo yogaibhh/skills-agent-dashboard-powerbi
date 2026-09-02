@@ -20,7 +20,7 @@
         "optional": false
       },
       {
-        "slot": "yearSlicer",
+        "slot": "dateSlicer",
         "role": "dateSlicer",
         "visualType": "slicer",
         "position": {
@@ -35,7 +35,7 @@
         "optional": false
       },
       {
-        "slot": "geoDrill",
+        "slot": "comparison",
         "role": "comparison",
         "visualType": "columnChart",
         "position": {
@@ -50,7 +50,7 @@
         "optional": false
       },
       {
-        "slot": "productDrill",
+        "slot": "breakdown",
         "role": "breakdown",
         "visualType": "barChart",
         "position": {
@@ -65,7 +65,7 @@
         "optional": false
       },
       {
-        "slot": "groupSlicer",
+        "slot": "categorySlicer",
         "role": "categorySlicer",
         "visualType": "slicer",
         "position": {
@@ -80,7 +80,7 @@
         "optional": false
       },
       {
-        "slot": "timeDrill",
+        "slot": "trend",
         "role": "trend",
         "visualType": "lineChart",
         "position": {
@@ -96,6 +96,10 @@
       }
     ]
   },
-  "source": "Sales.Report",
-  "harvestedAt": "2026-09-02T08:41:25.656Z"
+  "source": "sales-explore",
+  "attribution": {
+    "repository": "local sample report",
+    "license": "unspecified"
+  },
+  "harvestedAt": "2026-09-02T09:40:21.540Z"
 }

@@ -1,0 +1,76 @@
+{
+  "blueprint": {
+    "name": "worlddata-human-development",
+    "description": "Harvested from 'Human Development' in World Data.Report - 4 slots.",
+    "useWhen": "A layout lifted from an existing report. Check the inferred roles before relying on it.",
+    "slots": [
+      {
+        "slot": "categorySlicer",
+        "role": "categorySlicer",
+        "visualType": "slicer",
+        "position": {
+          "x": 544,
+          "y": 88,
+          "z": 6000,
+          "width": 712,
+          "height": 32,
+          "tabOrder": 5000
+        },
+        "purpose": "slicer bound to a non-date column (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "breakdown",
+        "role": "breakdown",
+        "visualType": "azureMap",
+        "position": {
+          "x": 544,
+          "y": 128,
+          "z": 1000,
+          "width": 712,
+          "height": 544,
+          "tabOrder": 0
+        },
+        "purpose": "no rule for 'azureMap'; treated as a breakdown (harvested, low confidence)",
+        "optional": true
+      },
+      {
+        "slot": "detailTable",
+        "role": "detailTable",
+        "visualType": "tableEx",
+        "position": {
+          "x": 24,
+          "y": 224,
+          "z": 2000,
+          "width": 504,
+          "height": 440,
+          "tabOrder": 1000
+        },
+        "purpose": "a table shows row-level detail (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "title",
+        "role": "title",
+        "visualType": "textbox",
+        "position": {
+          "x": 544,
+          "y": 672,
+          "z": 3000,
+          "width": 712,
+          "height": 24,
+          "tabOrder": 2000
+        },
+        "purpose": "a textbox at the top of a page is the title (harvested, high confidence)",
+        "optional": false
+      }
+    ]
+  },
+  "source": "worlddata-human-development",
+  "attribution": {
+    "repository": "jurgenfolz/WorldDataReport",
+    "license": "MIT",
+    "url": "https://github.com/jurgenfolz/WorldDataReport"
+  },
+  "harvestedAt": "2026-09-02T09:40:03.035Z"
+}

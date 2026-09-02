@@ -18,8 +18,12 @@ import { Bindings, Position, readReport } from './pbir.js';
 const CANVAS_RIGHT = 1256;
 const CANVAS_BOTTOM = 696;
 
-/** Types that carry branding rather than structure - not worth keeping in a reusable layout. */
-const DECORATION = new Set(['image', 'shape', 'basicShape']);
+/**
+ * Branding and navigation chrome, not layout. Buttons matter here: they have no bindings, so role
+ * inference falls through to 'breakdown' and the generator dutifully turns a Back button into a bar
+ * chart.
+ */
+const DECORATION = new Set(['image', 'shape', 'basicShape', 'actionButton', 'blank']);
 
 interface Inference {
   role: SlotRole;
@@ -122,7 +126,28 @@ export interface HarvestedPage {
   warnings: string[];
 }
 
+/**
+ * Rescales a layout from its source canvas onto the target one.
+ *
+ * Most real reports are authored at 1920x1080, not the 1280x720 the generator uses. Snapping those
+ * coordinates directly does not adapt the layout, it amputates it: a visual at x=1500 gets clamped to
+ * the right margin. Scaling first preserves the design, and because 1920x1080 and 1280x720 are both
+ * 16:9 the common case is an exact proportional shrink.
+ */
+function rescale(p: Position, sx: number, sy: number): Position {
+  return {
+    ...p,
+    x: p.x * sx,
+    y: p.y * sy,
+    width: p.width * sx,
+    height: p.height * sy,
+  };
+}
+
 export interface HarvestLayoutOptions {
+  /** Canvas to normalise onto. Defaults to the 1280x720 the blueprints use. */
+  targetWidth?: number;
+  targetHeight?: number;
   /** Snap positions onto the grid. On by default; turn it off to keep a layout byte-faithful. */
   snap?: boolean;
   /** Prefix for generated blueprint names. Defaults to the report folder name. */
@@ -136,6 +161,8 @@ export async function harvestLayout(
   options: HarvestLayoutOptions = {},
 ): Promise<HarvestedPage[]> {
   const snap = options.snap !== false;
+  const targetWidth = options.targetWidth ?? 1280;
+  const targetHeight = options.targetHeight ?? 720;
   const report = await readReport(reportPath);
 
   // Which tables are date tables? Read from the model if it is reachable, otherwise guess by name so
@@ -177,10 +204,22 @@ export async function harvestLayout(
     const seenRoles = new Map<SlotRole, number>();
     let maxDrift = 0;
 
-    if (page.width !== 1280 || page.height !== 720) {
+    const scaleX = targetWidth / page.width;
+    const scaleY = targetHeight / page.height;
+    const rescaled = scaleX !== 1 || scaleY !== 1;
+
+    if (rescaled) {
+      const sourceAspect = page.width / page.height;
+      const targetAspect = targetWidth / targetHeight;
+      const skew = Math.abs(sourceAspect - targetAspect) / targetAspect;
       warnings.push(
-        `Source page is ${page.width}x${page.height}; slots are kept as-is and may not fit a 1280x720 canvas.`,
+        `Source page is ${page.width}x${page.height}; rescaled by ${scaleX.toFixed(3)}x${scaleY.toFixed(3)} onto ${targetWidth}x${targetHeight}.`,
       );
+      if (skew > 0.05) {
+        warnings.push(
+          `Source aspect ratio differs from the target by ${Math.round(skew * 100)}%, so proportions are stretched, not just scaled.`,
+        );
+      }
     }
 
     for (const v of [...page.visuals].sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x)) {
@@ -193,15 +232,18 @@ export async function harvestLayout(
         continue;
       }
 
-      const inferred = inferRole(v.visualType, v.bindings, v.position, dateTables);
-      const { position, drift } = snap ? snapToGrid(v.position) : { position: v.position, drift: 0 };
+      const scaledPosition = rescaled ? rescale(v.position, scaleX, scaleY) : v.position;
+      const inferred = inferRole(v.visualType, v.bindings, scaledPosition, dateTables);
+      const { position, drift } = snap ? snapToGrid(scaledPosition) : { position: scaledPosition, drift: 0 };
       maxDrift = Math.max(maxDrift, drift);
 
       // A role can only be planned once per page, so later duplicates keep the geometry but are
       // marked optional - the caller can still fill them by hand.
       const count = (seenRoles.get(inferred.role) ?? 0) + 1;
       seenRoles.set(inferred.role, count);
-      const slotName = count === 1 ? v.folder : `${v.folder}`;
+      // Real reports name visual folders with the internal hex token, which makes an unreadable
+      // template. Name by what the slot is for instead.
+      const slotName = count === 1 ? inferred.role : `${inferred.role}${count}`;
 
       slots.push({
         slot: slotName,
@@ -232,8 +274,12 @@ export async function harvestLayout(
           }
         }
       }
-      if (maxDrift > 40) {
-        warnings.push(`Snapping moved something by ${maxDrift}px. The source layout is far off the grid.`);
+      // Half a column is 52px, so any layout not already on this grid drifts up to that much by
+      // definition. Only warn past it, or the warning fires on every healthy harvest.
+      if (maxDrift > 60) {
+        warnings.push(
+          `Snapping moved something by ${maxDrift}px, more than half a column (52px). Something was clamped at a margin - check the result.`,
+        );
       }
     }
 
@@ -263,13 +309,27 @@ export async function harvestLayout(
 // Template library
 // ---------------------------------------------------------------------------------------------
 
+export interface Attribution {
+  /** Where the layout came from, e.g. 'microsoft/fabric-toolbox'. */
+  repository?: string;
+  /** SPDX id of the source licence, e.g. 'MIT'. */
+  license?: string;
+  url?: string;
+}
+
 export interface TemplateFile {
   blueprint: Blueprint;
   source?: string;
+  attribution?: Attribution;
   harvestedAt?: string;
 }
 
-export async function saveTemplate(dir: string, blueprint: Blueprint, source?: string): Promise<string> {
+export async function saveTemplate(
+  dir: string,
+  blueprint: Blueprint,
+  source?: string,
+  attribution?: Attribution,
+): Promise<string> {
   await fs.mkdir(dir, { recursive: true });
   const file = path.join(dir, `${blueprint.name}.json`);
   const payload: TemplateFile = {
@@ -277,6 +337,9 @@ export async function saveTemplate(dir: string, blueprint: Blueprint, source?: s
     // Only the report folder name. A template is meant to be shared, and an absolute path carries a
     // username and a directory layout that have nothing to do with the layout being described.
     source: source ? path.basename(source) : undefined,
+    // Layout geometry is thin on original expression, but a template lifted from someone else's
+    // work should still say whose it was and under what licence.
+    attribution,
     harvestedAt: new Date().toISOString(),
   };
   await fs.writeFile(file, JSON.stringify(payload, null, 2) + '\n', 'utf8');

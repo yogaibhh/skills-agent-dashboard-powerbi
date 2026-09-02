@@ -7,7 +7,7 @@
 
 import { Bindings, FieldRef } from './pbir.js';
 import { Blueprint, Slot, getBlueprint } from './blueprints.js';
-import { writeVisual } from './visuals.js';
+import { ROLES, writeVisual } from './visuals.js';
 
 export interface FieldAssignment {
   title: string;
@@ -51,6 +51,21 @@ interface Plan {
   skip?: string;
 }
 
+/**
+ * Which queryState role a card-like visual puts its measures in.
+ *
+ * cardVisual uses Data; card and multiRowCard use Values. A harvested template can carry any of them
+ * in a kpiRow slot, so the role has to come from the visual type rather than being assumed.
+ */
+function measureRole(visualType: string, fallback: string): string {
+  const accepted = ROLES[visualType];
+  if (!accepted || accepted.length === 0) return fallback;
+  if (accepted.includes(fallback)) return fallback;
+  if (accepted.includes('Data')) return 'Data';
+  if (accepted.includes('Values')) return 'Values';
+  return accepted[0];
+}
+
 function planSlot(slot: Slot, a: FieldAssignment): Plan {
   const measure = a.primaryMeasure ?? a.kpiMeasures[0];
 
@@ -68,12 +83,15 @@ function planSlot(slot: Slot, a: FieldAssignment): Plan {
 
     case 'kpiRow':
       if (a.kpiMeasures.length === 0) return { skip: 'no kpiMeasures supplied' };
-      return { bindings: { Data: a.kpiMeasures.slice(0, 4) }, title: null };
+      return {
+        bindings: { [measureRole(slot.visualType, 'Data')]: a.kpiMeasures.slice(0, 4) },
+        title: null,
+      };
 
     case 'heroMetric':
       if (a.kpiMeasures.length === 0) return { skip: 'no kpiMeasures supplied' };
       // One number only. A hero slot holding four cards is just a KPI row in a tall box.
-      return { bindings: { Data: [a.kpiMeasures[0]] }, title: null };
+      return { bindings: { [measureRole(slot.visualType, 'Data')]: [a.kpiMeasures[0]] }, title: null };
 
     case 'trend':
       if (!a.dateField) return { skip: 'no dateField supplied' };
@@ -151,12 +169,25 @@ export async function applyBlueprint(
   blueprintName: string,
   assignment: FieldAssignment,
   overwrite = false,
+  fillDuplicateRoles = false,
 ): Promise<ApplyBlueprintResult> {
   const blueprint: Blueprint = getBlueprint(blueprintName);
   const applied: AppliedSlot[] = [];
   const skipped: SkippedSlot[] = [];
+  const filledRoles = new Set<string>();
 
   for (const slot of blueprint.slots) {
+    // A harvested layout often has three bar charts, because the original had three showing
+    // different things. There is only one field assignment here, so filling them all produces the
+    // same chart three times. Fill the first and leave the rest for the caller to bind by hand.
+    if (!fillDuplicateRoles && slot.optional && filledRoles.has(slot.role)) {
+      skipped.push({
+        slot: slot.slot,
+        reason: `a ${slot.role} is already on this page; it would be an identical copy. Pass fillDuplicateRoles to place it anyway, or add_visual it with different fields.`,
+      });
+      continue;
+    }
+
     const plan = planSlot(slot, assignment);
 
     if (plan.skip) {
@@ -184,6 +215,7 @@ export async function applyBlueprint(
       overwrite,
     });
 
+    filledRoles.add(slot.role);
     applied.push({
       slot: slot.slot,
       visualType: slot.visualType,

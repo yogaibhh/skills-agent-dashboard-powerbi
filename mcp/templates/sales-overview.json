@@ -20,7 +20,7 @@
         "optional": false
       },
       {
-        "slot": "topCard",
+        "slot": "kpiRow",
         "role": "kpiRow",
         "visualType": "cardVisual",
         "position": {
@@ -50,7 +50,7 @@
         "optional": false
       },
       {
-        "slot": "barChart",
+        "slot": "breakdown",
         "role": "breakdown",
         "visualType": "barChart",
         "position": {
@@ -65,7 +65,7 @@
         "optional": false
       },
       {
-        "slot": "timeSeries",
+        "slot": "trend",
         "role": "trend",
         "visualType": "areaChart",
         "position": {
@@ -81,6 +81,10 @@
       }
     ]
   },
-  "source": "Sales.Report",
-  "harvestedAt": "2026-09-02T08:41:25.651Z"
+  "source": "sales-overview",
+  "attribution": {
+    "repository": "local sample report",
+    "license": "unspecified"
+  },
+  "harvestedAt": "2026-09-02T09:40:21.528Z"
 }

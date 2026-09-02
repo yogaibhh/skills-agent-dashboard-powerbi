@@ -212,7 +212,7 @@ harvesting. No Pester, no modules, no network - it runs on Windows PowerShell 5.
 the same range the scripts support. `-Filter "validate*"` runs a subset; `-KeepWorkspace` leaves the
 fixtures behind for inspection.
 
-**MCP server** — 58 tests:
+**MCP server** — 61 tests:
 
 ```bash
 cd mcp && npm test

@@ -101,6 +101,12 @@ anything moved - a 50px drift means the source was never on a grid, which is wor
 trusting it. Saved templates record only the source folder name, never an absolute path, because a
 template is meant to be shared.
 
+**Harvesting is filtered hard, and the yield is low on purpose.** Of 28 usable pages across four
+public MIT repositories, 24 were rejected because most of their slots repeated a role. A real page
+with seven line charts is showing seven different things; this generator has one field assignment to
+give it, so filling all seven would produce the same chart seven times. `templates/NOTICE.md` records
+what shipped, from where, and under which licence.
+
 **Recommendation ranks completeness over size.** A three-slot layout the model fills entirely beats a
 nine-slot one with four gaps. What it cannot do is see the data: cardinality is unchecked and field
 picks come from names and format strings, so it returns its reasoning and its gaps rather than one
@@ -126,7 +132,7 @@ what "valid" means.
 npm test
 ```
 
-58 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
+61 tests. Unit tests cover the grid, blueprint geometry, projection shapes, literal encoding, sort
 placement, theme presets, TMDL reading and classification, validation rules and the wireframe renderer. Protocol tests spawn the
 real server over stdio and drive it with a real MCP client, so the tool schemas, handlers and
 transport are exercised the way a host exercises them.

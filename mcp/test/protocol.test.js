@@ -422,6 +422,58 @@ test('recommend_dashboard ranks layouts and returns usable arguments', async () 
   });
 });
 
+test('a recommendation does not count duplicate-role slots as fillable', async () => {
+  // A harvested layout can carry seven trend slots. apply_blueprint fills one; a recommendation that
+  // called all seven fillable would rank a two-thirds-empty page as the best available.
+  const { root, modelPath } = await fixtureModel();
+
+  await withClient(async (client) => {
+    const source = JSON.parse(
+      textOf(
+        await client.callTool({
+          name: 'create_report',
+          arguments: { name: 'Dupes', outputPath: root, modelPath: '../Sales.SemanticModel' },
+        }),
+      ),
+    );
+
+    // Three bar charts on one page become three breakdown slots when harvested.
+    for (const [i, x] of [24, 440, 856].entries()) {
+      await client.callTool({
+        name: 'add_visual',
+        arguments: {
+          reportPath: source.reportPath,
+          visualFolder: `bar${i}`,
+          visualType: 'barChart',
+          position: { x, y: 216, width: 400, height: 232 },
+          bindings: {
+            Category: [{ table: 'Product', field: 'Category', kind: 'Column' }],
+            Y: [{ table: 'Sales', field: 'Total Sales', kind: 'Measure' }],
+          },
+        },
+      });
+    }
+
+    const harvested = JSON.parse(
+      textOf(await client.callTool({ name: 'harvest_layout', arguments: { reportPath: source.reportPath } })),
+    ).harvested[0];
+
+    const roles = harvested.slots.map((s) => s.role);
+    assert.equal(roles.filter((r) => r === 'breakdown').length, 3, 'expected three breakdown slots');
+
+    const rec = JSON.parse(
+      textOf(await client.callTool({ name: 'recommend_dashboard', arguments: { modelPath, limit: 20 } })),
+    ).recommendations.find((r) => r.blueprint === harvested.blueprint);
+
+    assert.ok(rec, 'the harvested layout should be ranked');
+    assert.ok(rec.fillable < harvested.slots.length, 'duplicates must not count as fillable');
+    assert.ok(
+      rec.gaps.some((g) => /duplicate/.test(g.reason)),
+      'the duplicate slots should be reported as gaps',
+    );
+  });
+});
+
 test('harvest_layout turns a generated report back into a usable blueprint', async () => {
   const { root, modelPath } = await fixtureModel();
 

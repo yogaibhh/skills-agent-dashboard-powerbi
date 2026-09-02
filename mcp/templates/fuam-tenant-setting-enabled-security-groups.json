@@ -1,0 +1,76 @@
+{
+  "blueprint": {
+    "name": "fuam-tenant-setting-enabled-security-groups",
+    "description": "Harvested from 'Tenant Setting Enabled Security Groups' in FUAM_Core_Report.Report - 4 slots.",
+    "useWhen": "A layout lifted from an existing report. Check the inferred roles before relying on it.",
+    "slots": [
+      {
+        "slot": "kpiRow",
+        "role": "kpiRow",
+        "visualType": "card",
+        "position": {
+          "x": 1168,
+          "y": 8,
+          "z": 3000,
+          "width": 88,
+          "height": 32,
+          "tabOrder": 0
+        },
+        "purpose": "card holding 1 measures (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "title",
+        "role": "title",
+        "visualType": "textbox",
+        "position": {
+          "x": 128,
+          "y": 8,
+          "z": 0,
+          "width": 296,
+          "height": 32,
+          "tabOrder": 3000
+        },
+        "purpose": "a textbox at the top of a page is the title (harvested, high confidence)",
+        "optional": false
+      },
+      {
+        "slot": "trend",
+        "role": "trend",
+        "visualType": "lineChart",
+        "position": {
+          "x": 24,
+          "y": 48,
+          "z": 1000,
+          "width": 1232,
+          "height": 88,
+          "tabOrder": 4000
+        },
+        "purpose": "a line chart, though not bound to a date column (harvested, low confidence)",
+        "optional": true
+      },
+      {
+        "slot": "detailTable",
+        "role": "detailTable",
+        "visualType": "tableEx",
+        "position": {
+          "x": 24,
+          "y": 144,
+          "z": 4000,
+          "width": 1232,
+          "height": 552,
+          "tabOrder": 1000
+        },
+        "purpose": "a table shows row-level detail (harvested, high confidence)",
+        "optional": false
+      }
+    ]
+  },
+  "source": "fuam-tenant-setting-enabled-security-groups",
+  "attribution": {
+    "repository": "microsoft/fabric-toolbox",
+    "license": "MIT",
+    "url": "https://github.com/microsoft/fabric-toolbox"
+  },
+  "harvestedAt": "2026-09-02T09:40:03.034Z"
+}

@@ -20,7 +20,7 @@
         "optional": false
       },
       {
-        "slot": "kpiCard",
+        "slot": "kpiRow",
         "role": "kpiRow",
         "visualType": "cardVisual",
         "position": {
@@ -35,7 +35,7 @@
         "optional": false
       },
       {
-        "slot": "yearSlicer",
+        "slot": "dateSlicer",
         "role": "dateSlicer",
         "visualType": "slicer",
         "position": {
@@ -50,7 +50,7 @@
         "optional": false
       },
       {
-        "slot": "packageBar",
+        "slot": "breakdown",
         "role": "breakdown",
         "visualType": "barChart",
         "position": {
@@ -65,7 +65,7 @@
         "optional": false
       },
       {
-        "slot": "productTable",
+        "slot": "detailTable",
         "role": "detailTable",
         "visualType": "tableEx",
         "position": {
@@ -80,7 +80,7 @@
         "optional": false
       },
       {
-        "slot": "marginScatter",
+        "slot": "scatter",
         "role": "scatter",
         "visualType": "scatterChart",
         "position": {
@@ -96,6 +96,10 @@
       }
     ]
   },
-  "source": "Sales.Report",
-  "harvestedAt": "2026-09-02T08:41:25.654Z"
+  "source": "sales-product-performance",
+  "attribution": {
+    "repository": "local sample report",
+    "license": "unspecified"
+  },
+  "harvestedAt": "2026-09-02T09:40:21.539Z"
 }
